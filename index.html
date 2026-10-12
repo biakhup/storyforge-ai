@@ -1,0 +1,3078 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="data:," />
+  <title>StoryForge AI — Video Recap Studio</title>
+  <meta name="description" content="StoryForge AI: upload a video, transcribe it with on-device Whisper, analyze the story, generate a recap script, translate, dub and export — from your phone." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,600;6..72,700&family=Noto+Sans+Myanmar:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a0910;
+      --surface: #16131f;
+      --surface-soft: #221d33;
+      --ink: #f4f2fa;
+      --muted: #a79fc4;
+      --line: #2e2947;
+      --accent: #8b5cf6;
+      --accent-hover: #7c4de8;
+      --accent-soft: #2b2148;
+      --teal: #8b5cf6;
+      --teal-soft: #261d45;
+      --focus: #b79cff;
+      --danger: #ff7b73;
+      --gold: #eec44f;
+      --shadow: 0 18px 50px rgba(0, 0, 0, .5), 0 0 28px rgba(139, 92, 246, .07);
+      --canvas: #050408;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "DM Sans", "Noto Sans Myanmar", sans-serif;
+      line-height: 1.5;
+      padding-bottom: 0;
+    }
+    button, input, textarea, select { font: inherit; }
+    button, label, input[type="file"] { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--focus) 45%, transparent);
+      outline-offset: 2px;
+    }
+    /* ---------- Top bar + tabs ---------- */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: color-mix(in srgb, var(--bg) 88%, transparent);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+    }
+    .topbar-inner {
+      width: min(1240px, calc(100% - 32px));
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 10px 0 0;
+      flex-wrap: wrap;
+    }
+    .brand h1 {
+      font-size: clamp(1.3rem, 3vw, 1.7rem);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      line-height: 1.05;
+      margin: 0;
+    }
+    .brand h1 span { color: var(--gold); }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: .8rem; }
+    .head-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .head-badges span {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .head-badges span:last-child { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); }
+    .tabbar {
+      width: min(1240px, calc(100% - 32px));
+      margin: 0 auto;
+      display: flex;
+      gap: 8px;
+      padding: 10px 0 12px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tabbar::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      flex: 1 0 auto;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 9px 16px;
+      font-weight: 700;
+      font-size: .88rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tab-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 6px 20px rgba(139, 92, 246, .35);
+    }
+    .bottomnav { display: none; }
+    /* ---------- Layout ---------- */
+    .page {
+      width: min(1240px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 18px 0 56px;
+    }
+    .view[hidden] { display: none; }
+    .view-head { padding: 2px 0 14px; }
+    .view-head h2 { margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: -.01em; }
+    .view-head h2 span { color: var(--gold); }
+    .view-head p { margin: 5px 0 0; color: var(--muted); font-size: .88rem; max-width: 68ch; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+    .panel-head {
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-head h2, .section-title h2 {
+      font-size: .95rem;
+      line-height: 1.2;
+      margin: 0;
+      font-weight: 700;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: .78rem;
+      white-space: nowrap;
+    }
+    .status::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--line);
+    }
+    .status.ready::before { background: var(--gold); }
+    .step-num {
+      color: var(--gold);
+      margin-right: 7px;
+      font-family: "Newsreader", Georgia, serif;
+      font-size: 1.08rem;
+    }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(340px, .9fr);
+      gap: 22px;
+      align-items: start;
+      margin-top: 22px;
+    }
+    .preview-panel { position: sticky; top: 118px; overflow: hidden; }
+    .stage {
+      position: relative;
+      min-height: 360px;
+      background: var(--canvas);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    #previewVideo {
+      display: none;
+      max-width: 100%;
+      max-height: min(68vh, 700px);
+      width: 100%;
+      background: #000;
+    }
+    .subtitle-preview {
+      position: absolute;
+      left: 6%;
+      right: 6%;
+      bottom: 8%;
+      z-index: 2;
+      display: none;
+      text-align: center;
+      color: #fff;
+      font-family: "Noto Sans Myanmar", "DM Sans", sans-serif;
+      font-size: clamp(1rem, 2.8vw, 1.7rem);
+      line-height: 1.35;
+      font-weight: 700;
+      text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 3px 8px rgba(0,0,0,.8);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      pointer-events: none;
+    }
+    .subtitle-preview.pos-top { bottom: auto; top: 6%; }
+    .subtitle-preview.pos-middle { bottom: auto; top: 50%; transform: translateY(-50%); }
+    .empty-stage { padding: 44px 28px; text-align: center; color: #f6f3ed; }
+    .empty-stage svg { width: 54px; height: 54px; color: var(--gold); }
+    .empty-stage strong { display: block; margin-top: 12px; font-size: 1.15rem; }
+    .empty-stage p { max-width: 34ch; margin: 7px auto 0; color: #aeb5af; font-size: .9rem; }
+    .player-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 16px;
+      border-top: 1px solid var(--line);
+    }
+    .icon-btn {
+      width: 39px;
+      height: 39px;
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      border-radius: 50%;
+    }
+    .icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .icon-btn svg { width: 17px; height: 17px; }
+    .timeline { flex: 1; accent-color: var(--accent); min-width: 0; }
+    .timecode { font-variant-numeric: tabular-nums; font-size: .76rem; color: var(--muted); white-space: nowrap; }
+    /* ---------- Upload ---------- */
+    .upload-panel { margin-bottom: 0; }
+    .upload-block { padding: 18px; }
+    .upload-label {
+      min-height: 124px;
+      display: grid;
+      place-items: center;
+      border: 1.5px dashed var(--line);
+      background: var(--surface-soft);
+      text-align: center;
+      padding: 24px;
+      cursor: pointer;
+      transition: border-color .18s ease, background .18s ease;
+      border-radius: 14px;
+    }
+    .upload-label:hover, .upload-label.dragging { border-color: var(--teal); background: var(--teal-soft); }
+    .upload-label strong { display: block; font-size: .95rem; }
+    .upload-label small { display: block; margin-top: 5px; color: var(--muted); }
+    .file-input-native { width: 100%; margin-top: 10px; color: var(--muted); font-size: .78rem; }
+    .file-input-native::file-selector-button {
+      min-height: 38px;
+      margin-right: 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-soft);
+      color: var(--ink);
+      padding: 8px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .file-meta {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .file-meta.show { display: flex; }
+    .file-meta span {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 5px 11px;
+      font-size: .76rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .file-meta span b { color: var(--ink); font-weight: 700; }
+    /* ---------- Tool panels / forms ---------- */
+    .tools { display: grid; gap: 18px; }
+    .tool-panel { padding: 0 18px 18px; }
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 58px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 16px;
+    }
+    .section-title h2 span {
+      color: var(--gold);
+      margin-right: 7px;
+      font-family: "Newsreader", Georgia, serif;
+      font-size: 1.08rem;
+    }
+    .ghost-btn, .small-btn {
+      border: 0;
+      background: transparent;
+      color: #b79cff;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 7px 0;
+      font-size: .83rem;
+    }
+    .small-btn { color: var(--danger); }
+    .field { min-width: 0; }
+    .field label {
+      display: block;
+      color: var(--muted);
+      font-size: .7rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+    input[type="number"], input[type="text"], input[type="password"], input[type="url"], textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+      color: var(--ink);
+      border-radius: 10px;
+      padding: 9px 10px;
+    }
+    input[type="number"] { font-variant-numeric: tabular-nums; }
+    textarea { min-height: 66px; resize: vertical; line-height: 1.45; }
+    .seg {
+      display: flex;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .seg button {
+      flex: 1;
+      min-height: 46px;
+      border: 0;
+      background: var(--surface-soft);
+      color: var(--ink);
+      font-weight: 700;
+      cursor: pointer;
+      padding: 9px 6px;
+      font-size: .85rem;
+    }
+    .seg button + button { border-left: 1px solid var(--line); }
+    .seg button.active { background: var(--teal); color: #fff; }
+    .seg.wrap { flex-wrap: wrap; border-radius: 16px; }
+    .seg.wrap button { flex: 1 1 30%; }
+    .seg-label { font-size: .78rem; font-weight: 600; color: var(--muted); margin: 14px 0 6px; }
+    .seg-label:first-of-type { margin-top: 0; }
+    .action-btn, .file-btn {
+      min-height: 46px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-soft);
+      color: var(--ink);
+      padding: 10px 13px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+    .action-btn:hover, .file-btn:hover { border-color: var(--teal); }
+    .action-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .primary-btn {
+      min-height: 50px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      padding: 12px 18px;
+      cursor: pointer;
+      box-shadow: 0 8px 26px rgba(139, 92, 246, .38);
+      width: 100%;
+    }
+    .primary-btn:hover { background: var(--accent-hover); }
+    .primary-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .voice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .voice-state { margin: 11px 0 0; min-height: 21px; color: var(--muted); font-size: .8rem; }
+    .voice-state strong { color: #c4b0ff; }
+    .voice-state.error { color: var(--danger); }
+    .honest-note { font-size: .8rem; color: var(--muted); margin: 10px 0 0; }
+    .honest-note strong { color: var(--ink); }
+    .transcript-area { min-height: 96px; }
+    .dub-actions { display: grid; gap: 10px; margin-top: 14px; }
+    .dub-actions .action-btn { min-height: 52px; font-size: .95rem; }
+    .method-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0 4px; color: var(--muted); font-size: .74rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .method-divider::before, .method-divider::after { content: ""; height: 1px; background: var(--line); flex: 1; }
+    /* ---------- Whisper box ---------- */
+    .whisper-box { border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line)); background: #1d1733; border-radius: 14px; padding: 14px; margin-top: 14px; }
+    .whisper-box h3 { margin: 0 0 4px; font-size: .92rem; line-height: 1.25; }
+    .whisper-box h3 span { color: var(--gold); }
+    .whisper-btn { width: 100%; min-height: 54px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 800; font-size: .98rem; padding: 13px 16px; cursor: pointer; box-shadow: 0 8px 26px rgba(139,92,246,.38); }
+    .whisper-btn:hover { background: var(--accent-hover); }
+    .whisper-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .whisper-progress { display: none; margin-top: 12px; }
+    .whisper-progress.show { display: block; }
+    .whisper-progress-meta { display: flex; justify-content: space-between; gap: 10px; font-size: .76rem; color: var(--muted); margin-bottom: 6px; }
+    .whisper-progress-track { height: 6px; background: var(--surface-soft); border-radius: 999px; overflow: hidden; }
+    .whisper-progress-bar { height: 100%; width: 0; background: var(--gold); transition: width .15s linear; }
+    .whisper-state { margin: 10px 0 0; min-height: 21px; color: var(--muted); font-size: .82rem; line-height: 1.45; }
+    .whisper-state strong { color: var(--ink); }
+    .whisper-state.error { color: var(--danger); }
+    /* ---------- Timed lines ---------- */
+    .caption-list { display: grid; gap: 12px; }
+    .caption-row {
+      display: grid;
+      grid-template-columns: 76px 76px minmax(0, 1fr) auto;
+      gap: 9px;
+      align-items: end;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .caption-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .delete-row {
+      width: 34px;
+      height: 38px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.35rem;
+    }
+    .delete-row:hover { color: var(--danger); }
+    .line-tools {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      align-items: center;
+    }
+    .mini-btn {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 6px 11px;
+      font-size: .76rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .mini-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .mini-btn.recording { color: var(--danger); border-color: var(--danger); }
+    .mini-btn.has-take { border-color: color-mix(in srgb, var(--gold) 60%, var(--line)); color: var(--gold); }
+    .line-rec-state { font-size: .74rem; color: var(--muted); }
+    .empty-captions { color: var(--muted); text-align: center; font-size: .86rem; padding: 14px 0; }
+    /* ---------- Analysis / script cards ---------- */
+    .mode-banner {
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--gold);
+      background: var(--surface-soft);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: .8rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .mode-banner strong { color: var(--ink); }
+    .mode-banner.ai { border-left-color: var(--accent); }
+    .card-grid { display: grid; gap: 12px; }
+    .mini-card {
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .mini-card h4 { margin: 0 0 8px; font-size: .82rem; font-weight: 800; letter-spacing: .02em; }
+    .mini-card h4 span { color: var(--gold); margin-right: 6px; }
+    .mini-card textarea { background: var(--surface); min-height: 56px; }
+    .stat-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .stat-row span {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 5px 11px;
+      font-size: .76rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .stat-row span b { color: var(--ink); }
+    /* ---------- Export ---------- */
+    .export-panel { background: #1e1836; color: #f4f2fa; border-color: #3a2f63; }
+    .export-panel .section-title { border-color: color-mix(in srgb, currentColor 18%, transparent); }
+    .export-panel .section-title h2 span { color: var(--gold); }
+    .export-panel .seg { border-color: color-mix(in srgb, currentColor 28%, transparent); }
+    .export-panel .seg button { background: transparent; color: inherit; }
+    .export-panel .seg button + button { border-color: color-mix(in srgb, currentColor 28%, transparent); }
+    .export-panel .seg button.active { background: var(--accent); color: #fff; }
+    .export-panel .seg-label { color: color-mix(in srgb, currentColor 70%, transparent); }
+    .export-panel select, .export-panel input[type="text"] { background: #171230; border-color: color-mix(in srgb, currentColor 25%, transparent); color: inherit; }
+    .export-copy { color: color-mix(in srgb, currentColor 70%, transparent); font-size: .8rem; margin: -3px 0 14px; }
+    .export-actions { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+    .download-srt {
+      min-height: 50px;
+      border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+      border-radius: 999px;
+      color: inherit;
+      background: transparent;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .download-result {
+      display: none;
+      min-height: 48px;
+      margin-top: 12px;
+      border-radius: 999px;
+      background: var(--teal);
+      color: #fff;
+      padding: 11px 15px;
+      font-weight: 700;
+      text-align: center;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+    }
+    .download-result.show { display: flex; }
+    .progress-wrap { display: none; margin-top: 14px; }
+    .progress-meta { display: flex; justify-content: space-between; gap: 10px; font-size: .76rem; margin-bottom: 6px; }
+    .progress-track { height: 5px; background: color-mix(in srgb, currentColor 16%, transparent); overflow: hidden; border-radius: 999px; }
+    .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .1s linear; }
+    .notice {
+      margin-top: 18px;
+      padding: 12px 14px;
+      background: var(--accent-soft);
+      color: var(--ink);
+      font-size: .8rem;
+      border-left: 3px solid var(--accent);
+      border-radius: 0 10px 10px 0;
+    }
+    .auto-box {
+      margin-top: 18px;
+      border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+      background: rgba(0,0,0,.18);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .auto-box h3 { margin: 0 0 4px; font-size: .9rem; }
+    .auto-box h3 span { color: var(--gold); }
+    .auto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .check-row { display: flex; gap: 9px; align-items: flex-start; font-size: .82rem; margin-top: 12px; }
+    .check-row input { width: 18px; height: 18px; accent-color: var(--accent); margin-top: 2px; }
+    /* ---------- Mix / style controls ---------- */
+    .mix-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+    .mix-row label { font-size: .82rem; font-weight: 600; }
+    .mix-row label small { display: block; color: var(--muted); font-weight: 400; }
+    .mix-row input[type="range"] { width: 130px; accent-color: var(--accent); }
+    input[type="range"] { accent-color: var(--accent); }
+    .swatches { display: flex; gap: 8px; align-items: center; }
+    .swatch {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 2px solid var(--line);
+      cursor: pointer;
+      padding: 0;
+    }
+    .swatch.active { border-color: var(--gold); box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 50%, transparent); }
+    /* ---------- Projects / scripts / translate / settings ---------- */
+    .stack { display: grid; gap: 14px; }
+    .proj-card {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+    }
+    .proj-card h3 { margin: 0; font-size: 1rem; font-weight: 800; }
+    .proj-card .proj-meta { color: var(--muted); font-size: .78rem; margin-top: 3px; }
+    .proj-card .proj-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 11px; }
+    .proj-actions .mini-btn { background: var(--surface-soft); }
+    .proj-actions .mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .zomi-card {
+      border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
+      background: #1d1733;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: .85rem;
+    }
+    .zomi-card h3 { margin: 0 0 6px; font-size: .92rem; }
+    .zomi-card h3 span { color: var(--gold); }
+    .settings-card { padding: 18px; }
+    .settings-card h3 { margin: 0 0 4px; font-size: .95rem; }
+    .settings-card h3 span { color: var(--gold); margin-right: 6px; }
+    .divider { height: 1px; background: var(--line); margin: 18px 0; }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: max(18px, env(safe-area-inset-bottom));
+      transform: translateX(-50%) translateY(20px);
+      max-width: min(460px, calc(100% - 32px));
+      background: var(--ink);
+      color: var(--bg);
+      padding: 11px 15px;
+      font-size: .84rem;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+      z-index: 60;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #renderCanvas { display: none; }
+    @media (max-width: 860px) {
+      .page { width: min(100% - 22px, 680px); padding-top: 14px; }
+      .workspace { grid-template-columns: 1fr; }
+      .preview-panel { position: static; }
+      .stage { min-height: 290px; }
+      .two-col { grid-template-columns: 1fr; }
+      .tabbar { display: none; }
+      body { padding-bottom: 76px; }
+      .bottomnav {
+        display: flex;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
+        background: color-mix(in srgb, var(--surface) 94%, transparent);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid var(--line);
+        padding: 6px 6px max(6px, env(safe-area-inset-bottom));
+        gap: 4px;
+      }
+      .bottomnav .tab-btn {
+        flex: 1;
+        min-height: 52px;
+        border: 0;
+        background: transparent;
+        border-radius: 12px;
+        padding: 6px 2px;
+        font-size: .68rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+      }
+      .bottomnav .tab-btn .tab-ico { font-size: 1.15rem; line-height: 1; }
+      .bottomnav .tab-btn.active { background: var(--accent-soft); color: var(--ink); box-shadow: none; }
+      .toast { bottom: max(84px, env(safe-area-inset-bottom)); }
+    }
+    @media (max-width: 520px) {
+      .page { width: 100%; padding: 10px 10px 40px; }
+      .topbar-inner, .tabbar { width: calc(100% - 20px); }
+      .caption-row { grid-template-columns: 1fr 1fr auto; }
+      .caption-row .caption-text { grid-column: 1 / -1; grid-row: 1; }
+      .caption-row .delete-row { grid-column: 3; grid-row: 2; }
+      .voice-grid { grid-template-columns: 1fr; }
+      .export-actions { grid-template-columns: 1fr; }
+      .auto-grid { grid-template-columns: 1fr; }
+      .stage { min-height: 250px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <h1>StoryForge <span>AI</span></h1>
+        <p>Forge any video into a recap — transcribe, understand the story, narrate, translate, export.</p>
+      </div>
+      <div class="head-badges" aria-hidden="true">
+        <span>Free</span>
+        <span>No sign-up</span>
+        <span>Works on your phone</span>
+      </div>
+    </div>
+    <nav class="tabbar" id="tabBar" aria-label="StoryForge sections">
+      <button type="button" class="tab-btn active" data-view="create">🎬 Create Video</button>
+      <button type="button" class="tab-btn" data-view="projects">📁 My Projects</button>
+      <button type="button" class="tab-btn" data-view="scripts">📝 Recap Scripts</button>
+      <button type="button" class="tab-btn" data-view="translate">🌐 Translation</button>
+      <button type="button" class="tab-btn" data-view="settings">⚙ Settings</button>
+    </nav>
+  </header>
+
+  <main class="page">
+    <!-- ================= CREATE VIDEO ================= -->
+    <section class="view" id="view-create">
+      <article class="panel upload-panel" id="step-upload">
+        <header class="panel-head">
+          <h2><span class="step-num">01</span>Add your clip</h2>
+          <span class="status">MP4 · MOV · WebM</span>
+        </header>
+        <div class="upload-block">
+          <label class="upload-label" id="dropZone" for="videoInput">
+            <span><strong id="uploadTitle">Tap here to choose your video</strong><small id="uploadHint">MP4, MOV or WebM · your file stays on this device</small></span>
+          </label>
+          <input class="file-input-native" id="videoInput" type="file" accept="video/mp4,video/quicktime,video/webm,video/*" aria-label="Choose your video clip">
+          <div class="file-meta" id="fileMeta" aria-live="polite">
+            <span>File <b id="metaName">—</b></span>
+            <span>Length <b id="metaDuration">—</b></span>
+            <span>Size <b id="metaSize">—</b></span>
+            <span>Picture <b id="metaDims">—</b></span>
+          </div>
+          <p class="seg-label">Video shape (for export)</p>
+          <div class="seg wrap" id="aspectSeg">
+            <button type="button" data-aspect="original" class="active">Original</button>
+            <button type="button" data-aspect="9:16">9:16 Reels / TikTok</button>
+            <button type="button" data-aspect="16:9">16:9 YouTube</button>
+            <button type="button" data-aspect="1:1">1:1 Square</button>
+          </div>
+          <p class="honest-note">Short clips work best on a phone — transcription and rendering happen on this device.</p>
+        </div>
+      </article>
+
+      <section class="workspace">
+        <article class="panel preview-panel">
+          <header class="panel-head">
+            <h2>Preview</h2>
+            <span class="status" id="videoStatus">No clip loaded</span>
+          </header>
+          <div class="stage" id="stage">
+            <div class="empty-stage" id="emptyStage">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5.5h16v13H4z"/><path d="m4 9 4-3.5L12 9l4-3.5L20 9M4 13h16"/></svg>
+              <strong>Your edit appears here</strong>
+              <p>Start with a video from your phone or computer.</p>
+            </div>
+            <video id="previewVideo" playsinline preload="metadata"></video>
+            <div class="subtitle-preview" id="subtitlePreview" aria-live="polite"></div>
+          </div>
+          <div class="player-bar">
+            <button class="icon-btn" id="playBtn" type="button" disabled aria-label="Play video">
+              <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m8 5 11 7-11 7z"/></svg>
+            </button>
+            <input class="timeline" id="timeline" type="range" min="0" max="100" value="0" step="0.01" disabled aria-label="Video timeline">
+            <span class="timecode"><span id="currentTime">0:00</span> / <span id="duration">0:00</span></span>
+          </div>
+        </article>
+
+        <div class="tools">
+          <article class="panel tool-panel" id="step-script">
+            <header class="section-title">
+              <h2><span>02</span>Transcribe</h2>
+            </header>
+            <p class="seg-label">Language spoken in the clip</p>
+            <div class="seg" id="srcLangSeg">
+              <button type="button" data-lang="en-US" class="active">English</button>
+              <button type="button" data-lang="my-MM">Burmese · မြန်မာ</button>
+            </div>
+            <p class="seg-label">Dub / translate lines into</p>
+            <div class="seg" id="tgtLangSeg">
+              <button type="button" data-lang="my" class="active">Burmese · မြန်မာ</button>
+              <button type="button" data-lang="en">English</button>
+            </div>
+            <div class="whisper-box" id="whisperBox">
+              <h3>Real transcription <span>· Whisper AI</span></h3>
+              <p class="honest-note" style="margin-top:0">Reads the words <strong>directly from your video file</strong> — not through the microphone. Runs fully on this phone / device with no server.</p>
+              <div class="dub-actions" style="margin-top:12px">
+                <button type="button" class="whisper-btn" id="whisperBtn">🎙 Transcribe video with Whisper (real, on this device)</button>
+              </div>
+              <div class="whisper-progress" id="whisperProgressWrap" aria-live="polite">
+                <div class="whisper-progress-meta"><span id="whisperProgressLabel">Preparing Whisper…</span><span id="whisperProgressValue"></span></div>
+                <div class="whisper-progress-track"><div class="whisper-progress-bar" id="whisperProgressBar"></div></div>
+              </div>
+              <p class="whisper-state" id="whisperState">First use downloads the Whisper model once (~40 MB) — then it works from this device. A small model, so words may need fixing in the timed lines. Short clips (a few minutes) work best. Keep this page open while it works.</p>
+            </div>
+            <div class="method-divider"><span>Or · microphone method</span></div>
+            <div class="dub-actions">
+              <button type="button" class="action-btn" id="transcribeBtn">Transcribe with microphone (secondary)</button>
+            </div>
+            <p class="voice-state" id="transcribeState">Secondary method — Chrome / Android works best: tap the button, then play the clip out loud — your phone listens through its microphone. Or paste a transcript below.</p>
+            <div class="field" style="margin-top:12px">
+              <label for="transcriptBox">Transcript — type, paste or edit it here</label>
+              <textarea id="transcriptBox" class="transcript-area" placeholder="The words spoken in the clip appear here…"></textarea>
+            </div>
+            <div class="voice-grid" style="margin-top:10px">
+              <button type="button" class="action-btn" id="splitBtn">Split into timed lines</button>
+              <button type="button" class="action-btn" id="translateBtn">Translate all lines</button>
+            </div>
+            <p class="voice-state" id="translateState">Translation uses a free online service (MyMemory), so it needs internet. Read every line after translating and fix the wording before you dub.</p>
+          </article>
+
+          <article class="panel tool-panel" id="step-analysis">
+            <header class="section-title">
+              <h2><span>03</span>Story analysis</h2>
+            </header>
+            <div class="mode-banner" id="analysisModeBanner">
+              <strong>Basic mode (no AI key).</strong> Without a Gemini key, StoryForge can only count words and show the first / middle / last lines — it cannot truly understand the story. Add your free Gemini key in <strong>Settings</strong> for real AI story analysis.
+            </div>
+            <div class="dub-actions" style="margin-top:0">
+              <button type="button" class="action-btn" id="analyzeBtn">Analyze the story</button>
+            </div>
+            <p class="voice-state" id="analysisState">Transcribe first, then analyze. Everything below is editable — fix anything the analysis gets wrong.</p>
+            <div class="stat-row" id="analysisStats" style="margin-bottom:12px"></div>
+            <div class="card-grid" id="analysisCards">
+              <div class="mini-card">
+                <h4><span>◆</span>Story summary</h4>
+                <textarea id="anSummary" placeholder="What this video is about, in a few sentences…"></textarea>
+              </div>
+              <div class="mini-card">
+                <h4><span>◆</span>Main characters <small style="color:var(--muted);font-weight:400">(one per line)</small></h4>
+                <textarea id="anCharacters" placeholder="One character per line…"></textarea>
+              </div>
+              <div class="mini-card">
+                <h4><span>◆</span>Key events <small style="color:var(--muted);font-weight:400">(one per line, in order)</small></h4>
+                <textarea id="anEvents" placeholder="One key event per line…"></textarea>
+              </div>
+              <div class="mini-card">
+                <h4><span>◆</span>Plot twist</h4>
+                <textarea id="anTwist" placeholder="The surprise turn, if there is one…"></textarea>
+              </div>
+              <div class="mini-card">
+                <h4><span>◆</span>Ending</h4>
+                <textarea id="anEnding" placeholder="How the story ends…"></textarea>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel tool-panel" id="step-recap">
+            <header class="section-title">
+              <h2><span>04</span>Recap script</h2>
+            </header>
+            <p class="seg-label">Recap length</p>
+            <div class="seg" id="scriptLenSeg">
+              <button type="button" data-secs="30">30 sec</button>
+              <button type="button" data-secs="60" class="active">60 sec</button>
+              <button type="button" data-secs="90">90 sec</button>
+            </div>
+            <p class="seg-label">Narration tone</p>
+            <div class="seg wrap" id="scriptToneSeg">
+              <button type="button" data-tone="Dramatic" class="active">Dramatic</button>
+              <button type="button" data-tone="Emotional">Emotional</button>
+              <button type="button" data-tone="Suspense">Suspense</button>
+              <button type="button" data-tone="Documentary">Documentary</button>
+            </div>
+            <div class="dub-actions">
+              <button type="button" class="action-btn" id="genScriptBtn">Generate recap script</button>
+              <button type="button" class="action-btn" id="regenScriptBtn" disabled>Regenerate</button>
+            </div>
+            <p class="voice-state" id="scriptState">With a Gemini key (Settings) the script is written by AI from your transcript + story analysis — accurate to the video, no invented plot. Without a key, a <strong>basic picker</strong> chooses real sentences from your transcript to roughly fit the length (labeled basic, not AI).</p>
+            <div class="field" style="margin-top:10px">
+              <label for="scriptBox">Narration script — edit freely</label>
+              <textarea id="scriptBox" style="min-height:130px" placeholder="Your recap narration appears here…"></textarea>
+            </div>
+            <p class="voice-state" id="scriptMeta"></p>
+            <div class="voice-grid" style="margin-top:8px">
+              <button type="button" class="action-btn" id="scriptToLinesBtn">Use script as timed lines</button>
+              <button type="button" class="action-btn" id="scriptTranslateBtn">Translate script</button>
+            </div>
+            <div class="voice-grid" style="margin-top:10px">
+              <button type="button" class="action-btn" id="scriptUndoBtn" disabled>Undo translate</button>
+              <button type="button" class="action-btn" id="scriptCopyBtn">Copy script</button>
+            </div>
+            <p class="honest-note">“Translate script” translates into the “Dub / translate lines into” language chosen in step 02 (free online translation — check the wording). Your script is saved with the project on this device.</p>
+          </article>
+
+          <article class="panel tool-panel" id="step-lines">
+            <header class="section-title">
+              <h2><span>05</span>Timed lines</h2>
+              <button type="button" class="ghost-btn" id="addCaption">+ Add line</button>
+            </header>
+            <div class="caption-list" id="captionList">
+              <p class="empty-captions" id="emptyCaptions">Add a line, then set when it appears.</p>
+            </div>
+            <p class="honest-note">Each line is one caption + one dub line. Use the small buttons under a line to hear the AI voice, or record your own take for that line.</p>
+          </article>
+
+          <article class="panel tool-panel" id="step-voice">
+            <header class="section-title">
+              <h2><span>06</span>Voice &amp; subtitles</h2>
+            </header>
+            <p class="seg-label">Dub voice</p>
+            <div class="seg" id="dubModeSeg">
+              <button type="button" data-mode="ai" class="active">AI voice</button>
+              <button type="button" data-mode="recorded">My recorded lines</button>
+            </div>
+            <div class="field" style="margin-top:12px">
+              <label for="voiceSelect">AI voice installed on this device</label>
+              <select id="voiceSelect"></select>
+            </div>
+            <div class="voice-grid" style="margin-top:10px">
+              <button type="button" class="action-btn" id="testVoiceBtn">Test AI voice</button>
+              <button type="button" class="action-btn" id="stopVoiceBtn">Stop AI voice</button>
+            </div>
+            <p class="honest-note">Press play on the video and the chosen voice speaks each timed line when its start time arrives. Record your own take per line in step 05 (🎙 Record). AI voice quality — and whether Burmese works at all — depends on the voices installed on your phone. <strong>One browser limit:</strong> the AI voice plays live but cannot be recorded into the exported file, so for export use your recorded lines, or the AUTO server mode below.</p>
+            <div class="mix-row">
+              <label for="originalVolume">Original clip sound<small>Lower it to make narration clear</small></label>
+              <input id="originalVolume" type="range" min="0" max="100" value="25" aria-label="Original clip sound level">
+            </div>
+            <p class="seg-label" style="margin-top:18px">Subtitle style (preview + export)</p>
+            <div class="field">
+              <label for="subSize">Subtitle size — <span id="subSizeVal">100%</span></label>
+              <input id="subSize" type="range" min="50" max="160" step="5" value="100" style="width:100%" aria-label="Subtitle size">
+            </div>
+            <p class="seg-label">Subtitle position</p>
+            <div class="seg" id="subPosSeg">
+              <button type="button" data-pos="bottom" class="active">Bottom</button>
+              <button type="button" data-pos="middle">Middle</button>
+              <button type="button" data-pos="top">Top</button>
+            </div>
+            <p class="seg-label">Subtitle color</p>
+            <div class="swatches" id="subColorSwatches">
+              <button type="button" class="swatch active" data-color="#ffffff" style="background:#ffffff" aria-label="White"></button>
+              <button type="button" class="swatch" data-color="#ffe45e" style="background:#ffe45e" aria-label="Yellow"></button>
+              <button type="button" class="swatch" data-color="#eec44f" style="background:#eec44f" aria-label="Gold"></button>
+              <button type="button" class="swatch" data-color="#7be3ff" style="background:#7be3ff" aria-label="Sky blue"></button>
+              <button type="button" class="swatch" data-color="#ffb3d9" style="background:#ffb3d9" aria-label="Pink"></button>
+            </div>
+          </article>
+
+          <article class="panel tool-panel export-panel" id="step-export">
+            <header class="section-title">
+              <h2><span>07</span>Export</h2>
+            </header>
+            <p class="seg-label">Burn captions into the video</p>
+            <div class="seg" id="burnSeg">
+              <button type="button" data-burn="on" class="active">On</button>
+              <button type="button" data-burn="off">Off</button>
+            </div>
+            <p class="export-copy" style="margin-top:14px">On-device render: plays the full clip once and records it with your recorded narration lines (or the original sound). Keep this page open until the download is ready.</p>
+            <div class="export-actions">
+              <button type="button" class="primary-btn" id="exportBtn" disabled>Render &amp; download video</button>
+              <button type="button" class="download-srt" id="srtBtn">Download .SRT</button>
+            </div>
+            <div class="progress-wrap" id="progressWrap">
+              <div class="progress-meta"><span id="progressLabel">Rendering…</span><span id="progressValue">0%</span></div>
+              <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+            </div>
+            <a class="download-result" id="downloadResult" href="#" download>Download finished video</a>
+            <div class="notice">The studio uses the video format your browser supports — MP4 where available, otherwise WebM. Chrome on Android gives the most reliable result.</div>
+
+            <div class="auto-box" id="autoBox">
+              <h3>AUTO server mode <span>· full AI dub</span></h3>
+              <p class="honest-note" style="margin-top:0">Sends your clip to a running StoryForge / Recap Studio v3 server, which transcribes, translates and dubs it with a real AI voice <strong>inside</strong> the finished MP4. This needs the server running (for example on Google Colab) and its URL saved in Settings.</p>
+              <div id="autoNoBackend">
+                <p class="voice-state">No backend URL saved yet — add one in <strong>Settings → AUTO server</strong>, then come back here.</p>
+              </div>
+              <div id="autoControls" hidden>
+                <div class="auto-grid">
+                  <div class="field">
+                    <label for="autoTargetLang">Dub language</label>
+                    <select id="autoTargetLang"></select>
+                  </div>
+                  <div class="field">
+                    <label for="autoVoice">Server voice</label>
+                    <select id="autoVoice">
+                      <option value="female">Female</option>
+                      <option value="male">Male</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="autoTranslateMode">Translate mode</label>
+                    <select id="autoTranslateMode">
+                      <option value="fast">Fast — free online translate</option>
+                      <option value="quality">Quality — Gemini (uses your key)</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="autoSyncMode">Sync mode</label>
+                    <select id="autoSyncMode">
+                      <option value="smart">Smart Sync — picture follows voice</option>
+                      <option value="fit">Fit — voice fits original timing</option>
+                    </select>
+                  </div>
+                </div>
+                <label class="check-row"><input type="checkbox" id="autoKeepOriginal"> <span>Keep original sound quietly underneath the dub (with Smart Sync it becomes ambience only — timing drifts)</span></label>
+                <div class="dub-actions">
+                  <button type="button" class="whisper-btn" id="autoBtn">⚡ Generate AUTO dubbed video on server</button>
+                </div>
+                <div class="progress-wrap" id="autoProgressWrap">
+                  <div class="progress-meta"><span id="autoProgressLabel">Waiting…</span><span id="autoProgressValue">0%</span></div>
+                  <div class="progress-track"><div class="progress-bar" id="autoProgressBar"></div></div>
+                </div>
+                <p class="voice-state" id="autoState"></p>
+                <div class="voice-grid" id="autoLinks" hidden>
+                  <a class="action-btn" id="autoDownload" href="#" download>Download dubbed MP4</a>
+                  <a class="action-btn" id="autoSubs" href="#" download>Download subtitles .SRT</a>
+                </div>
+                <div class="dub-actions" id="autoResumeWrap" hidden>
+                  <button type="button" class="action-btn" id="autoResumeBtn">Resume this job on the server</button>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </section>
+
+    <!-- ================= MY PROJECTS ================= -->
+    <section class="view" id="view-projects" hidden>
+      <div class="view-head">
+        <h2>My <span>Projects</span></h2>
+        <p>Projects are <strong>saved on this device only</strong> (in this browser) — there are no accounts and nothing is uploaded. The video file itself cannot be saved, so re-add it when you reopen a project. Recorded voice takes last only until you reload the page.</p>
+      </div>
+      <article class="panel settings-card" style="margin-bottom:14px">
+        <h3><span>◆</span>Current project</h3>
+        <p class="honest-note" style="margin-top:0">Your work in Create Video is auto-saved to a project on this device as you go.</p>
+        <div class="field" style="margin-top:10px">
+          <label for="projectName">Project name</label>
+          <input type="text" id="projectName" placeholder="Name this project…">
+        </div>
+        <div class="voice-grid" style="margin-top:10px">
+          <button type="button" class="action-btn" id="saveProjectBtn">Save now</button>
+          <button type="button" class="action-btn" id="newProjectBtn">Start new project</button>
+        </div>
+        <p class="voice-state" id="projectSaveState"></p>
+      </article>
+      <div class="stack" id="projectList"></div>
+    </section>
+
+    <!-- ================= RECAP SCRIPTS ================= -->
+    <section class="view" id="view-scripts" hidden>
+      <div class="view-head">
+        <h2>Recap <span>Scripts</span></h2>
+        <p>Every script saved inside your projects, in one place. Edit here and it saves back into the project. Scripts live on this device only.</p>
+      </div>
+      <div class="stack" id="scriptList"></div>
+    </section>
+
+    <!-- ================= TRANSLATION ================= -->
+    <section class="view" id="view-translate" hidden>
+      <div class="view-head">
+        <h2>Transla<span>tion</span></h2>
+        <p>Translate text between languages with the free MyMemory service (needs internet). Compare the original and the translation side by side, then edit before you use it — machine translation can word things oddly, so always check names and numbers.</p>
+      </div>
+      <div class="zomi-card" style="margin-bottom:14px">
+        <h3>About <span>Zomi (Tedim)</span></h3>
+        <p style="margin:0">Zomi (Tedim) has <strong>no automatic translator yet</strong> — no honest app can translate into Zomi for you today. Write or paste your Zomi script in the Create Video editor (step 04 / timed lines) and add English subtitles manually. Anyone who sells you “auto Zomi translation” is faking it.</p>
+      </div>
+      <article class="panel settings-card">
+        <div class="two-col">
+          <div class="field">
+            <label for="trFromLang">From</label>
+            <select id="trFromLang"></select>
+          </div>
+          <div class="field">
+            <label for="trToLang">To</label>
+            <select id="trToLang"></select>
+          </div>
+        </div>
+        <div class="two-col" style="margin-top:12px">
+          <div class="field">
+            <label for="trInput">Original text</label>
+            <textarea id="trInput" style="min-height:150px" placeholder="Type or paste the text to translate…"></textarea>
+          </div>
+          <div class="field">
+            <label for="trOutput">Translation — compare, then edit if needed</label>
+            <textarea id="trOutput" style="min-height:150px" placeholder="The translation appears here…"></textarea>
+          </div>
+        </div>
+        <div class="voice-grid" style="margin-top:12px">
+          <button type="button" class="primary-btn" id="trTranslateBtn" style="width:auto">Translate</button>
+          <button type="button" class="action-btn" id="trSwapBtn">Swap languages ⇄</button>
+        </div>
+        <div class="voice-grid" style="margin-top:10px">
+          <button type="button" class="action-btn" id="trCopyBtn">Copy translation</button>
+          <button type="button" class="action-btn" id="trSendBtn">Send translation to recap script</button>
+        </div>
+        <p class="voice-state" id="trState">Free service — long text is translated in pieces; very heavy use can hit a daily limit.</p>
+      </article>
+    </section>
+
+    <!-- ================= SETTINGS ================= -->
+    <section class="view" id="view-settings" hidden>
+      <div class="view-head">
+        <h2>Set<span>tings</span></h2>
+        <p>Everything here is stored <strong>only in this browser, on this device</strong>. Nothing is sent anywhere except the requests you start yourself.</p>
+      </div>
+      <div class="stack">
+        <article class="panel settings-card">
+          <h3><span>◆</span>Gemini AI key — story analysis &amp; recap scripts</h3>
+          <p class="honest-note" style="margin-top:0">Story analysis and AI recap scripts use Google's Gemini with <strong>your own free AI Studio key</strong>. The key is stored only in this browser on this device and is sent only to Google when you tap Analyze or Generate. Use a <strong>fresh</strong> key, and never share the key — or screenshots showing it — with anyone.</p>
+          <div class="field" style="margin-top:10px">
+            <label for="geminiKeyInput">Gemini API key (from Google AI Studio — free)</label>
+            <input type="password" id="geminiKeyInput" placeholder="Paste your key here…" autocomplete="off">
+          </div>
+          <div class="voice-grid" style="margin-top:10px">
+            <button type="button" class="action-btn" id="toggleKeyBtn">Show / hide key</button>
+            <button type="button" class="action-btn" id="clearKeyBtn">Remove key</button>
+          </div>
+          <p class="voice-state" id="keyState"></p>
+          <p class="honest-note">Model used: <strong>gemini-2.5-flash</strong>. Free keys have a daily limit — if analysis stops with a quota message, wait and try again tomorrow, or the basic modes still work.</p>
+        </article>
+
+        <article class="panel settings-card">
+          <h3><span>◆</span>AUTO server (optional)</h3>
+          <p class="honest-note" style="margin-top:0">The AUTO server mode in Create Video → Export sends your clip to a Recap Studio v3 server <strong>you</strong> run (PC, VPS, or free Google Colab). Paste its address here — it changes each time a free Colab session restarts.</p>
+          <div class="field" style="margin-top:10px">
+            <label for="backendUrlInput">Backend URL (example: https://xxxx.trycloudflare.com)</label>
+            <input type="url" id="backendUrlInput" placeholder="https://…" autocomplete="off">
+          </div>
+          <p class="voice-state" id="backendState"></p>
+        </article>
+
+        <article class="panel settings-card">
+          <h3><span>◆</span>Defaults</h3>
+          <div class="field">
+            <label for="settingsVoiceSelect">Default AI voice (voices installed on this device)</label>
+            <select id="settingsVoiceSelect"></select>
+          </div>
+          <p class="honest-note">Default video shape is the aspect buttons in step 01 of Create Video — your last choice is remembered for the open project. Voice choice here applies to the dub preview in step 06.</p>
+        </article>
+
+        <article class="panel settings-card">
+          <h3><span>◆</span>Honest limits of this app</h3>
+          <ul class="honest-note" style="margin:0;padding-left:18px;line-height:1.65">
+            <li>Transcription (Whisper tiny) and rendering run <strong>on your phone</strong> — short clips are fast; long videos are slow.</li>
+            <li>The AI dub voice can be <strong>heard live</strong> but a browser cannot record it into the exported video. For an AI voice inside the file, use AUTO server mode.</li>
+            <li>Story analysis &amp; AI scripts need your free Gemini key and internet.</li>
+            <li>Translation (MyMemory) is a free service — check every line before posting.</li>
+            <li><strong>Zomi (Tedim) has no automatic translator or voice yet</strong> — write Zomi text yourself in the editor; do not trust any tool that claims otherwise.</li>
+            <li>Projects, scripts and settings live only in this browser. Clearing browser data deletes them.</li>
+          </ul>
+          <div class="divider"></div>
+          <button type="button" class="action-btn" id="clearAllBtn" style="border-color:color-mix(in srgb, var(--danger) 55%, var(--line));color:var(--danger)">Erase everything on this device</button>
+          <p class="voice-state" id="clearState"></p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottomnav" id="bottomNav" aria-label="StoryForge sections">
+    <button type="button" class="tab-btn active" data-view="create"><span class="tab-ico">🎬</span>Create Video</button>
+    <button type="button" class="tab-btn" data-view="projects"><span class="tab-ico">📁</span>My Projects</button>
+    <button type="button" class="tab-btn" data-view="scripts"><span class="tab-ico">📝</span>Recap Scripts</button>
+    <button type="button" class="tab-btn" data-view="translate"><span class="tab-ico">🌐</span>Translation</button>
+    <button type="button" class="tab-btn" data-view="settings"><span class="tab-ico">⚙</span>Settings</button>
+  </nav>
+
+  <canvas id="renderCanvas" aria-hidden="true"></canvas>
+  <audio id="voiceAudio" preload="auto"></audio>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* ================= Helpers ================= */
+      function $(id) { return document.getElementById(id); }
+      var toastEl = $('toast');
+      var toastTimer = 0;
+      function toast(message) {
+        toastEl.textContent = message;
+        toastEl.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 3400);
+      }
+      function fmtTime(seconds) {
+        if (!isFinite(seconds) || seconds < 0) seconds = 0;
+        var mins = Math.floor(seconds / 60);
+        var secs = Math.floor(seconds % 60);
+        return mins + ':' + String(secs).padStart(2, '0');
+      }
+      function fmtSize(bytes) {
+        if (!bytes && bytes !== 0) return '—';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+      }
+      function srtTime(seconds) {
+        if (!isFinite(seconds) || seconds < 0) seconds = 0;
+        var ms = Math.floor((seconds % 1) * 1000);
+        var total = Math.floor(seconds);
+        var secs = total % 60;
+        var mins = Math.floor(total / 60) % 60;
+        var hrs = Math.floor(total / 3600);
+        return String(hrs).padStart(2, '0') + ':' + String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0') + ',' + String(ms).padStart(3, '0');
+      }
+      function decodeEntities(text) {
+        var area = document.createElement('textarea');
+        area.innerHTML = text;
+        return area.value;
+      }
+      function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+      }
+      function downloadTextFile(filename, text, mime) {
+        var blob = new Blob([text], { type: (mime || 'text/plain') + ';charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+      }
+      function splitSentences(text) {
+        var raw = String(text || '').replace(/\s+/g, ' ').trim();
+        if (!raw) return [];
+        var parts = [];
+        var buf = '';
+        for (var i = 0; i < raw.length; i++) {
+          buf += raw[i];
+          if ('.!?။'.indexOf(raw[i]) !== -1) { if (buf.trim()) parts.push(buf.trim()); buf = ''; }
+        }
+        if (buf.trim()) parts.push(buf.trim());
+        return parts.length ? parts : [raw];
+      }
+      function countWords(text) {
+        var t = String(text || '').trim();
+        return t ? t.split(/\s+/).length : 0;
+      }
+
+      /* ================= Languages ================= */
+      var LANGS = [
+        ['en', 'English'], ['my', 'Burmese · မြန်မာ'], ['th', 'Thai'], ['zh-CN', 'Chinese'],
+        ['ja', 'Japanese'], ['ko', 'Korean'], ['hi', 'Hindi'], ['id', 'Indonesian'],
+        ['vi', 'Vietnamese'], ['ms', 'Malay'], ['es', 'Spanish'], ['fr', 'French'],
+        ['de', 'German'], ['ar', 'Arabic'], ['bn', 'Bengali'], ['ta', 'Tamil'],
+        ['te', 'Telugu'], ['ur', 'Urdu'], ['pt', 'Portuguese'], ['ru', 'Russian'],
+        ['it', 'Italian'], ['fil', 'Filipino'], ['km', 'Khmer'], ['lo', 'Lao']
+      ];
+      function mtCode(code) { return code === 'fil' ? 'tl' : code; }
+      function fillLangSelect(sel, selected) {
+        if (!sel) return;
+        sel.innerHTML = '';
+        LANGS.forEach(function (pair) {
+          var opt = document.createElement('option');
+          opt.value = pair[0];
+          opt.textContent = pair[1];
+          sel.appendChild(opt);
+        });
+        sel.value = selected || 'en';
+      }
+
+      /* ================= Settings (device-only) ================= */
+      var SETTINGS_KEY = 'storyforge.settings.v1';
+      var PROJECTS_KEY = 'storyforge.projects.v1';
+      var settings = { geminiKey: '', backendUrl: '', defaultVoiceIndex: '' };
+      try {
+        var savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
+        if (savedSettings && typeof savedSettings === 'object') {
+          settings.geminiKey = savedSettings.geminiKey || '';
+          settings.backendUrl = savedSettings.backendUrl || '';
+          settings.defaultVoiceIndex = savedSettings.defaultVoiceIndex != null ? String(savedSettings.defaultVoiceIndex) : '';
+        }
+      } catch (e) {}
+      function saveSettings() {
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+        refreshAutoAvailability();
+        refreshKeyState();
+      }
+      function geminiKey() { return (settings.geminiKey || '').trim(); }
+      function backendBase() { return (settings.backendUrl || '').trim().replace(/\/+$/, ''); }
+
+      /* ================= Navigation ================= */
+      var currentView = 'create';
+      function switchView(name) {
+        currentView = name;
+        ['create', 'projects', 'scripts', 'translate', 'settings'].forEach(function (v) {
+          var el = $('view-' + v);
+          if (el) el.hidden = v !== name;
+        });
+        var btns = document.querySelectorAll('.tab-btn');
+        btns.forEach(function (b) { b.classList.toggle('active', b.dataset.view === name); });
+        if (name === 'projects') renderProjects();
+        if (name === 'scripts') renderScripts();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      document.querySelectorAll('.tab-btn').forEach(function (b) {
+        b.addEventListener('click', function () { switchView(b.dataset.view); });
+      });
+
+      /* ================= Elements & state ================= */
+      var video = $('previewVideo');
+      var voiceAudio = $('voiceAudio');
+      var videoInput = $('videoInput');
+      var playBtn = $('playBtn');
+      var playIcon = $('playIcon');
+      var timeline = $('timeline');
+      var currentTimeEl = $('currentTime');
+      var durationEl = $('duration');
+      var statusEl = $('videoStatus');
+      var emptyStage = $('emptyStage');
+      var subtitlePreview = $('subtitlePreview');
+      var captionList = $('captionList');
+      var emptyCaptions = $('emptyCaptions');
+      var transcriptBox = $('transcriptBox');
+      var exportBtn = $('exportBtn');
+      var srtBtn = $('srtBtn');
+      var progressWrap = $('progressWrap');
+      var progressBar = $('progressBar');
+      var progressValue = $('progressValue');
+      var progressLabel = $('progressLabel');
+      var downloadResult = $('downloadResult');
+      var canvas = $('renderCanvas');
+      var ctx = canvas.getContext('2d');
+      var dropZone = $('dropZone');
+      var volumeInput = $('originalVolume');
+
+      var captions = [];
+      var nextCaptionId = 1;
+      var currentVideoFile = null;
+      var videoUrl = '';
+      var videoMeta = { name: '', size: 0, duration: 0, width: 0, height: 0 };
+      var resultUrl = '';
+      var isExporting = false;
+      var renderRecorder = null;
+      var animationId = 0;
+      var audioCtx = null;
+      var videoSource = null;
+      var voiceSource = null;
+      var videoGain = null;
+      var voiceGain = null;
+      var captureDestination = null;
+
+      var sourceLang = 'en-US';
+      var targetLang = 'my';
+      var dubMode = 'ai';
+      var aspectMode = 'original';
+      var burnCaptions = true;
+      var subStyle = { size: 100, position: 'bottom', color: '#ffffff' };
+      var spokenIds = {};
+      var playedRecIds = {};
+      var lineRecordings = {}; /* captionId -> { url, type } (session only, never saved) */
+      var lineRecorder = null;
+      var lineRecStream = null;
+      var lineRecChunks = [];
+      var lineRecCaptionId = null;
+      var lineRecBtn = null;
+
+      function safeDuration() { return isFinite(video.duration) ? video.duration : (videoMeta.duration || 0); }
+      function getCaptions() { return captions.slice().sort(function (a, b) { return a.start - b.start; }); }
+      function activeCaptionAt(time) {
+        var ordered = getCaptions();
+        for (var i = 0; i < ordered.length; i++) {
+          if (time >= ordered[i].start && time <= ordered[i].end && ordered[i].text.trim()) return ordered[i].text.trim();
+        }
+        return '';
+      }
+      function applySubtitleStyleToPreview() {
+        subtitlePreview.classList.toggle('pos-top', subStyle.position === 'top');
+        subtitlePreview.classList.toggle('pos-middle', subStyle.position === 'middle');
+        subtitlePreview.style.color = subStyle.color;
+        subtitlePreview.style.fontSize = 'clamp(' + (1 * subStyle.size / 100).toFixed(2) + 'rem, ' + (2.8 * subStyle.size / 100).toFixed(2) + 'vw, ' + (1.7 * subStyle.size / 100).toFixed(2) + 'rem)';
+      }
+      function refreshCaptionPreview() {
+        var text = activeCaptionAt(video.currentTime || 0);
+        subtitlePreview.textContent = text;
+        subtitlePreview.style.display = text ? 'block' : 'none';
+      }
+
+      /* ================= Segmented controls ================= */
+      function segControl(id, onPick) {
+        var el = $(id);
+        if (!el) return;
+        el.addEventListener('click', function (event) {
+          var btn = event.target.closest('button');
+          if (!btn) return;
+          var buttons = el.querySelectorAll('button');
+          for (var i = 0; i < buttons.length; i++) buttons[i].classList.remove('active');
+          btn.classList.add('active');
+          onPick(btn.dataset);
+        });
+      }
+      function setSegValue(id, attr, value) {
+        var el = $(id);
+        if (!el) return;
+        var btns = el.querySelectorAll('button');
+        btns.forEach(function (b) { b.classList.toggle('active', b.dataset[attr] === String(value)); });
+      }
+      segControl('srcLangSeg', function (data) { sourceLang = data.lang; populateVoices(); scheduleProjectSave(); });
+      segControl('tgtLangSeg', function (data) { targetLang = data.lang; populateVoices(); scheduleProjectSave(); });
+      segControl('aspectSeg', function (data) { aspectMode = data.aspect; scheduleProjectSave(); });
+      segControl('burnSeg', function (data) { burnCaptions = data.burn === 'on'; });
+      segControl('dubModeSeg', function (data) {
+        dubMode = data.mode;
+        spokenIds = {};
+        playedRecIds = {};
+        if (window.speechSynthesis) speechSynthesis.cancel();
+        voiceAudio.pause();
+        toast(dubMode === 'ai' ? 'AI voice dub on — press play on the video.' : 'Your recorded lines will play with the video.');
+      });
+      segControl('subPosSeg', function (data) { subStyle.position = data.pos; applySubtitleStyleToPreview(); });
+      $('subColorSwatches').addEventListener('click', function (event) {
+        var btn = event.target.closest('.swatch');
+        if (!btn) return;
+        var all = $('subColorSwatches').querySelectorAll('.swatch');
+        all.forEach(function (s) { s.classList.remove('active'); });
+        btn.classList.add('active');
+        subStyle.color = btn.dataset.color;
+        applySubtitleStyleToPreview();
+      });
+      $('subSize').addEventListener('input', function () {
+        subStyle.size = Number(this.value) || 100;
+        $('subSizeVal').textContent = subStyle.size + '%';
+        applySubtitleStyleToPreview();
+      });
+
+      /* ================= Captions / timed lines ================= */
+      function captionRow(caption) {
+        var row = document.createElement('div');
+        row.className = 'caption-row';
+        row.dataset.id = caption.id;
+        row.innerHTML = '' +
+          '<div class="field"><label>Start (sec)</label><input class="cap-start" type="number" min="0" step="0.1" value="' + caption.start.toFixed(1) + '"></div>' +
+          '<div class="field"><label>End (sec)</label><input class="cap-end" type="number" min="0" step="0.1" value="' + caption.end.toFixed(1) + '"></div>' +
+          '<div class="field caption-text"><label>Line — caption &amp; dub text</label><textarea class="cap-text" placeholder="Type your recap line…"></textarea></div>' +
+          '<button type="button" class="delete-row" aria-label="Delete caption">×</button>' +
+          '<div class="line-tools">' +
+            '<button type="button" class="mini-btn line-speak">▶ AI voice</button>' +
+            '<button type="button" class="mini-btn line-rec">🎙 Record</button>' +
+            '<button type="button" class="mini-btn line-play" disabled>▶ My take</button>' +
+            '<span class="line-rec-state"></span>' +
+          '</div>';
+        row.querySelector('.cap-text').value = caption.text;
+        row.querySelector('.cap-start').addEventListener('input', function (event) {
+          caption.start = Math.max(0, Number(event.target.value) || 0);
+          refreshCaptionPreview();
+          scheduleProjectSave();
+        });
+        row.querySelector('.cap-end').addEventListener('input', function (event) {
+          caption.end = Math.max(0, Number(event.target.value) || 0);
+          refreshCaptionPreview();
+          scheduleProjectSave();
+        });
+        row.querySelector('.cap-text').addEventListener('input', function (event) {
+          caption.text = event.target.value;
+          refreshCaptionPreview();
+          scheduleProjectSave();
+        });
+        row.querySelector('.delete-row').addEventListener('click', function () {
+          captions = captions.filter(function (item) { return item.id !== caption.id; });
+          if (lineRecordings[caption.id]) { URL.revokeObjectURL(lineRecordings[caption.id].url); delete lineRecordings[caption.id]; }
+          row.remove();
+          emptyCaptions.style.display = captions.length ? 'none' : 'block';
+          refreshCaptionPreview();
+          scheduleProjectSave();
+        });
+        row.querySelector('.line-speak').addEventListener('click', function () {
+          if (caption.text.trim()) speakText(caption.text.trim());
+          else toast('This line is empty — type the line first.');
+        });
+        var recBtn = row.querySelector('.line-rec');
+        var playTakeBtn = row.querySelector('.line-play');
+        var recState = row.querySelector('.line-rec-state');
+        recBtn.addEventListener('click', function () { toggleLineRecording(caption, recBtn, playTakeBtn, recState); });
+        playTakeBtn.addEventListener('click', function () {
+          var rec = lineRecordings[caption.id];
+          if (!rec) return;
+          setupAudioGraph();
+          voiceAudio.src = rec.url;
+          voiceAudio.play().catch(function () { toast('Could not play that take.'); });
+        });
+        if (lineRecordings[caption.id]) {
+          playTakeBtn.disabled = false;
+          recBtn.classList.add('has-take');
+          recState.textContent = 'Take saved for this session.';
+        }
+        return row;
+      }
+      function renderAllCaptionRows() {
+        var rows = captionList.querySelectorAll('.caption-row');
+        rows.forEach(function (row) { row.remove(); });
+        getCaptions().forEach(function (cap) { captionList.appendChild(captionRow(cap)); });
+        emptyCaptions.style.display = captions.length ? 'none' : 'block';
+        refreshCaptionPreview();
+      }
+      function setCaptions(list) {
+        captions = [];
+        (list || []).forEach(function (item) {
+          captions.push({
+            id: nextCaptionId++,
+            start: Math.max(0, Number(item.start) || 0),
+            end: Math.max(0, Number(item.end) || 0),
+            text: String(item.text || '')
+          });
+        });
+        renderAllCaptionRows();
+      }
+      function addCaption() {
+        var duration = safeDuration();
+        var last = getCaptions().slice(-1)[0];
+        var start = last ? Math.min(last.end, duration || last.end) : Math.min(video.currentTime || 0, duration || 0);
+        var end = duration ? Math.min(start + 3, duration) : start + 3;
+        if (end <= start) end = start + 3;
+        var caption = { id: nextCaptionId++, start: start, end: end, text: '' };
+        captions.push(caption);
+        emptyCaptions.style.display = 'none';
+        var row = captionRow(caption);
+        captionList.appendChild(row);
+        row.querySelector('textarea').focus();
+        scheduleProjectSave();
+      }
+      $('addCaption').addEventListener('click', addCaption);
+
+      /* Per-line recording (same getUserMedia + MediaRecorder pattern as the proven app) */
+      async function toggleLineRecording(caption, recBtn, playTakeBtn, recState) {
+        if (lineRecorder && lineRecCaptionId === caption.id) {
+          if (lineRecorder.state !== 'inactive') lineRecorder.stop();
+          return;
+        }
+        if (lineRecorder) { toast('Another line is recording — stop it first.'); return; }
+        if (!navigator.mediaDevices || !window.MediaRecorder) {
+          recState.textContent = 'Recording is not supported in this browser.';
+          return;
+        }
+        try {
+          lineRecStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          var options = {};
+          if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) options.mimeType = 'audio/webm;codecs=opus';
+          lineRecorder = new MediaRecorder(lineRecStream, options);
+          lineRecChunks = [];
+          lineRecCaptionId = caption.id;
+          lineRecBtn = recBtn;
+          lineRecorder.ondataavailable = function (event) { if (event.data && event.data.size) lineRecChunks.push(event.data); };
+          lineRecorder.onstop = function () {
+            var type = lineRecorder.mimeType || 'audio/webm';
+            var blob = new Blob(lineRecChunks, { type: type });
+            if (lineRecordings[caption.id]) URL.revokeObjectURL(lineRecordings[caption.id].url);
+            lineRecordings[caption.id] = { url: URL.createObjectURL(blob), type: type };
+            if (lineRecStream) lineRecStream.getTracks().forEach(function (t) { t.stop(); });
+            lineRecStream = null;
+            lineRecorder = null;
+            lineRecCaptionId = null;
+            recBtn.classList.remove('recording');
+            recBtn.classList.add('has-take');
+            recBtn.textContent = '🎙 Record';
+            playTakeBtn.disabled = false;
+            recState.textContent = 'Take saved for this session — it is not kept after reload.';
+            toast('Voice take recorded for that line.');
+          };
+          recBtn.classList.add('recording');
+          recBtn.textContent = '⏹ Stop';
+          recState.textContent = 'Recording… speak this line now, then tap Stop.';
+          lineRecorder.start();
+        } catch (e) {
+          if (lineRecStream) lineRecStream.getTracks().forEach(function (t) { t.stop(); });
+          lineRecStream = null;
+          lineRecorder = null;
+          recState.textContent = 'Microphone was not available — check permission.';
+        }
+      }
+
+      /* ================= Audio graph & player ================= */
+      function setupAudioGraph() {
+        if (!window.AudioContext && !window.webkitAudioContext) return false;
+        if (!audioCtx) {
+          var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new AudioContextClass();
+          captureDestination = audioCtx.createMediaStreamDestination();
+          videoGain = audioCtx.createGain();
+          voiceGain = audioCtx.createGain();
+          videoSource = audioCtx.createMediaElementSource(video);
+          voiceSource = audioCtx.createMediaElementSource(voiceAudio);
+          videoSource.connect(videoGain);
+          voiceSource.connect(voiceGain);
+          videoGain.connect(audioCtx.destination);
+          voiceGain.connect(audioCtx.destination);
+          videoGain.connect(captureDestination);
+          voiceGain.connect(captureDestination);
+          videoGain.gain.value = Number(volumeInput.value) / 100;
+          voiceGain.gain.value = 1;
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return true;
+      }
+      function resetPlayback() {
+        video.pause();
+        voiceAudio.pause();
+        video.currentTime = 0;
+        try { voiceAudio.currentTime = 0; } catch (e) {}
+        spokenIds = {};
+        playedRecIds = {};
+        refreshCaptionPreview();
+      }
+      function updatePlayIcon() {
+        playIcon.innerHTML = video.paused ? '<path d="m8 5 11 7-11 7z"/>' : '<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>';
+        playBtn.setAttribute('aria-label', video.paused ? 'Play video' : 'Pause video');
+      }
+      function loadVideoFile(file) {
+        if (!file || !file.type || file.type.indexOf('video/') !== 0) {
+          toast('Choose a video file (MP4, MOV or WebM).');
+          return;
+        }
+        currentVideoFile = file;
+        if (videoUrl) URL.revokeObjectURL(videoUrl);
+        videoUrl = URL.createObjectURL(file);
+        video.src = videoUrl;
+        video.style.display = 'block';
+        emptyStage.style.display = 'none';
+        if (resultUrl) URL.revokeObjectURL(resultUrl);
+        resultUrl = '';
+        downloadResult.classList.remove('show');
+        downloadResult.removeAttribute('href');
+        statusEl.textContent = 'Loading clip…';
+        statusEl.classList.remove('ready');
+        $('uploadTitle').textContent = file.name;
+        $('uploadHint').textContent = 'Tap to replace this clip';
+        videoMeta = { name: file.name, size: file.size || 0, duration: 0, width: 0, height: 0 };
+        $('metaName').textContent = file.name;
+        $('metaSize').textContent = fmtSize(file.size || 0);
+        $('metaDuration').textContent = '—';
+        $('metaDims').textContent = '—';
+        $('fileMeta').classList.add('show');
+        ensureProjectForVideo(file);
+        scheduleProjectSave();
+      }
+      videoInput.addEventListener('change', function () { loadVideoFile(videoInput.files[0]); });
+      ['dragenter', 'dragover'].forEach(function (name) {
+        dropZone.addEventListener(name, function (event) { event.preventDefault(); dropZone.classList.add('dragging'); });
+      });
+      ['dragleave', 'drop'].forEach(function (name) {
+        dropZone.addEventListener(name, function (event) { event.preventDefault(); dropZone.classList.remove('dragging'); });
+      });
+      dropZone.addEventListener('drop', function (event) {
+        loadVideoFile(event.dataTransfer.files[0]);
+      });
+      video.addEventListener('loadedmetadata', function () {
+        timeline.max = safeDuration();
+        timeline.value = 0;
+        durationEl.textContent = fmtTime(safeDuration());
+        currentTimeEl.textContent = '0:00';
+        playBtn.disabled = false;
+        timeline.disabled = false;
+        exportBtn.disabled = false;
+        statusEl.textContent = Math.round(video.videoWidth) + '×' + Math.round(video.videoHeight) + ' · ' + fmtTime(safeDuration());
+        statusEl.classList.add('ready');
+        videoMeta.duration = safeDuration();
+        videoMeta.width = video.videoWidth || 0;
+        videoMeta.height = video.videoHeight || 0;
+        $('metaDuration').textContent = fmtTime(safeDuration());
+        $('metaDims').textContent = (video.videoWidth || '—') + '×' + (video.videoHeight || '—');
+        if (!captions.length) addCaption();
+        refreshCaptionPreview();
+        scheduleProjectSave();
+      });
+      video.addEventListener('error', function () {
+        statusEl.textContent = 'Could not read this clip';
+        statusEl.classList.remove('ready');
+        toast('This video format is not supported by your browser.');
+      });
+      video.addEventListener('timeupdate', function () {
+        timeline.value = video.currentTime;
+        currentTimeEl.textContent = fmtTime(video.currentTime);
+        refreshCaptionPreview();
+        handleDubAtTime();
+        if (isExporting) {
+          var pct = safeDuration() ? Math.min(100, (video.currentTime / safeDuration()) * 100) : 0;
+          progressBar.style.width = pct.toFixed(1) + '%';
+          progressValue.textContent = Math.round(pct) + '%';
+        }
+      });
+      video.addEventListener('play', updatePlayIcon);
+      video.addEventListener('pause', function () {
+        updatePlayIcon();
+        if (window.speechSynthesis) speechSynthesis.cancel();
+      });
+      video.addEventListener('ended', function () {
+        updatePlayIcon();
+        if (isExporting && renderRecorder && renderRecorder.state === 'recording') renderRecorder.stop();
+      });
+      playBtn.addEventListener('click', function () {
+        if (!video.src || isExporting) return;
+        setupAudioGraph();
+        if (video.paused) {
+          if (video.ended) video.currentTime = 0;
+          spokenIds = {};
+          playedRecIds = {};
+          video.play().catch(function () { toast('Tap play again to start preview.'); });
+        } else {
+          video.pause();
+          voiceAudio.pause();
+        }
+      });
+      timeline.addEventListener('input', function () {
+        if (!video.src || isExporting) return;
+        video.currentTime = Number(timeline.value);
+        spokenIds = {};
+        playedRecIds = {};
+        if (window.speechSynthesis) speechSynthesis.cancel();
+        voiceAudio.pause();
+        refreshCaptionPreview();
+      });
+      volumeInput.addEventListener('input', function () {
+        if (videoGain) videoGain.gain.value = Number(volumeInput.value) / 100;
+        else video.volume = Number(volumeInput.value) / 100;
+      });
+
+      /* ================= Device TTS voices ================= */
+      var voiceSelect = $('voiceSelect');
+      var settingsVoiceSelect = $('settingsVoiceSelect');
+      function selectedVoice() {
+        if (!window.speechSynthesis) return null;
+        var voices = speechSynthesis.getVoices();
+        var idx = Number(voiceSelect.value);
+        return voices[idx] || null;
+      }
+      function fillVoiceSelect(sel, voices, order, wantIdx) {
+        sel.innerHTML = '';
+        order.forEach(function (i) {
+          var opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = voices[i].name + ' (' + voices[i].lang + ')';
+          sel.appendChild(opt);
+        });
+        if (wantIdx !== '' && wantIdx != null && voices[Number(wantIdx)]) sel.value = String(wantIdx);
+      }
+      function populateVoices() {
+        if (!window.speechSynthesis) {
+          voiceSelect.innerHTML = '<option value="">No AI voices in this browser</option>';
+          settingsVoiceSelect.innerHTML = '<option value="">No AI voices in this browser</option>';
+          return;
+        }
+        var voices = speechSynthesis.getVoices();
+        if (!voices.length) {
+          voiceSelect.innerHTML = '<option value="">Loading voices…</option>';
+          settingsVoiceSelect.innerHTML = '<option value="">Loading voices…</option>';
+          return;
+        }
+        var want = targetLang === 'my' ? 'my' : 'en';
+        var order = voices.map(function (v, i) { return i; }).sort(function (a, b) {
+          var am = voices[a].lang && voices[a].lang.toLowerCase().indexOf(want) === 0 ? 0 : 1;
+          var bm = voices[b].lang && voices[b].lang.toLowerCase().indexOf(want) === 0 ? 0 : 1;
+          return am - bm;
+        });
+        var currentMain = voiceSelect.value;
+        fillVoiceSelect(voiceSelect, voices, order, currentMain !== '' ? currentMain : settings.defaultVoiceIndex);
+        fillVoiceSelect(settingsVoiceSelect, voices, order, settings.defaultVoiceIndex !== '' ? settings.defaultVoiceIndex : voiceSelect.value);
+        settingsVoiceSelect.value = voiceSelect.value;
+        var hasTarget = voices.some(function (v) { return v.lang && v.lang.toLowerCase().indexOf(want) === 0; });
+        if (targetLang === 'my' && !hasTarget) {
+          var note = document.createElement('option');
+          note.value = order[0];
+          note.textContent = '⚠ No Burmese voice on this device — first voice will be used';
+          voiceSelect.insertBefore(note, voiceSelect.firstChild);
+          voiceSelect.value = String(order[0]);
+        }
+      }
+      if (window.speechSynthesis) {
+        populateVoices();
+        speechSynthesis.onvoiceschanged = populateVoices;
+      } else {
+        voiceSelect.innerHTML = '<option value="">AI voice not supported in this browser</option>';
+        settingsVoiceSelect.innerHTML = '<option value="">AI voice not supported in this browser</option>';
+      }
+      voiceSelect.addEventListener('change', function () {
+        settingsVoiceSelect.value = voiceSelect.value;
+        settings.defaultVoiceIndex = voiceSelect.value;
+        saveSettings();
+      });
+      settingsVoiceSelect.addEventListener('change', function () {
+        voiceSelect.value = settingsVoiceSelect.value;
+        settings.defaultVoiceIndex = settingsVoiceSelect.value;
+        saveSettings();
+      });
+      function speakText(text) {
+        if (!window.speechSynthesis) {
+          toast('AI voice is not supported in this browser. Record your own voice instead.');
+          return;
+        }
+        speechSynthesis.cancel();
+        var utterance = new SpeechSynthesisUtterance(text);
+        var voice = selectedVoice();
+        if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        speechSynthesis.speak(utterance);
+      }
+      function handleDubAtTime() {
+        if (video.paused || video.ended) return;
+        var t = video.currentTime || 0;
+        var ordered = getCaptions();
+        for (var i = 0; i < ordered.length; i++) {
+          var c = ordered[i];
+          if (!c.text.trim() || t < c.start || t > c.end) continue;
+          if (dubMode === 'ai') {
+            if (!window.speechSynthesis || spokenIds[c.id]) continue;
+            spokenIds[c.id] = true;
+            speakText(c.text.trim());
+          } else {
+            var rec = lineRecordings[c.id];
+            if (!rec || playedRecIds[c.id]) continue;
+            playedRecIds[c.id] = true;
+            setupAudioGraph();
+            if (voiceAudio.src !== rec.url) voiceAudio.src = rec.url;
+            try { voiceAudio.currentTime = 0; } catch (e) {}
+            voiceAudio.play().catch(function () {});
+          }
+        }
+      }
+      $('testVoiceBtn').addEventListener('click', function () {
+        var first = getCaptions().filter(function (c) { return c.text.trim(); })[0];
+        speakText(first ? first.text.trim() : (targetLang === 'my' ? 'မင်္ဂလာပါ။ ဒါက အသံစမ်းသပ်မှု ဖြစ်ပါတယ်။' : 'Hello. This is a test of the AI dub voice.'));
+      });
+      $('stopVoiceBtn').addEventListener('click', function () {
+        if (window.speechSynthesis) speechSynthesis.cancel();
+        voiceAudio.pause();
+      });
+
+      /* ================= Real Whisper transcription (Transformers.js v3, in-browser) =================
+         Mirrors the proven Recap Studio website implementation exactly:
+         lazy CDN import -> pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny', { dtype: 'q8' })
+         audio = decodeAudioData -> OfflineAudioContext 16 kHz mono -> Float32Array
+         inference = chunk_length_s 30, stride_length_s 5, return_timestamps true */
+      var WHISPER_CDN_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3/dist/transformers.min.js';
+      var WHISPER_MODEL_ID = 'Xenova/whisper-tiny';
+      var whisperPipelineInstance = null;
+      var whisperIsLoading = false;
+      var whisperBtn = $('whisperBtn');
+      var whisperState = $('whisperState');
+      var whisperProgressWrap = $('whisperProgressWrap');
+      var whisperProgressBar = $('whisperProgressBar');
+      var whisperProgressValue = $('whisperProgressValue');
+      var whisperProgressLabel = $('whisperProgressLabel');
+
+      function setWhisperProgress(label, pct) {
+        if (!whisperProgressWrap) return;
+        whisperProgressWrap.classList.add('show');
+        if (label != null) whisperProgressLabel.textContent = label;
+        if (typeof pct === 'number' && isFinite(pct)) {
+          var clamped = Math.max(0, Math.min(100, pct));
+          whisperProgressBar.style.width = clamped.toFixed(1) + '%';
+          whisperProgressValue.textContent = Math.round(clamped) + '%';
+        }
+      }
+      function hideWhisperProgress() {
+        if (whisperProgressWrap) whisperProgressWrap.classList.remove('show');
+      }
+      function setWhisperState(html, isError) {
+        if (!whisperState) return;
+        whisperState.classList.toggle('error', !!isError);
+        whisperState.innerHTML = html;
+      }
+      function applyDetectedLanguage(langCode) {
+        if (!langCode) return;
+        var code = String(langCode).toLowerCase().trim();
+        var mapped = null;
+        if (code === 'en' || code === 'english' || code.indexOf('en-') === 0) mapped = 'en-US';
+        else if (code === 'my' || code === 'burmese' || code === 'myanmar' || code.indexOf('my-') === 0) mapped = 'my-MM';
+        if (!mapped || mapped === sourceLang) return;
+        sourceLang = mapped;
+        setSegValue('srcLangSeg', 'lang', mapped);
+        populateVoices();
+      }
+      function feedSegmentsToLines(segments, fullText) {
+        var usable = (segments || []).filter(function (s) { return s && s.text && s.text.trim(); });
+        if (!usable.length && fullText && fullText.trim()) {
+          var dur = safeDuration() || 3;
+          usable = [{ start: 0, end: dur, text: fullText.trim() }];
+        }
+        if (!usable.length) return 0;
+        var list = usable.map(function (segItem) {
+          var s = Math.max(0, Number(segItem.start) || 0);
+          var e = Math.max(s + 0.5, Number(segItem.end) || (s + 3));
+          return { start: Math.round(s * 10) / 10, end: Math.round(e * 10) / 10, text: String(segItem.text).trim() };
+        });
+        setCaptions(list);
+        return list.length;
+      }
+      async function decodeVideoFileTo16kMono(file) {
+        var buffer = await file.arrayBuffer();
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) throw new Error('Web Audio is not available in this browser. Try Chrome on Android or desktop.');
+        var tmpCtx = new AC();
+        var decoded;
+        try {
+          decoded = await tmpCtx.decodeAudioData(buffer.slice(0));
+        } catch (decodeErr) {
+          throw new Error('This browser could not decode the audio inside that video file. Try an MP4 clip, or use the microphone method / paste a transcript.');
+        } finally {
+          try { await tmpCtx.close(); } catch (e) {}
+        }
+        var targetRate = 16000;
+        var OfflineAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        if (OfflineAC) {
+          var outLen = Math.max(1, Math.ceil(decoded.duration * targetRate));
+          var offline = new OfflineAC(1, outLen, targetRate);
+          var srcNode = offline.createBufferSource();
+          srcNode.buffer = decoded;
+          srcNode.connect(offline.destination);
+          srcNode.start(0);
+          var rendered = await offline.startRendering();
+          return rendered.getChannelData(0).slice();
+        }
+        /* Manual fallback: downmix + linear resample */
+        var numCh = decoded.numberOfChannels;
+        var inRate = decoded.sampleRate;
+        var inLen = decoded.length;
+        var mono = new Float32Array(inLen);
+        for (var ch = 0; ch < numCh; ch++) {
+          var chData = decoded.getChannelData(ch);
+          for (var i = 0; i < inLen; i++) mono[i] += chData[i] / numCh;
+        }
+        if (inRate === targetRate) return mono;
+        var ratio = inRate / targetRate;
+        var outLength = Math.floor(inLen / ratio);
+        var out = new Float32Array(outLength);
+        for (var j = 0; j < outLength; j++) {
+          var pos = j * ratio;
+          var idx = Math.floor(pos);
+          var frac = pos - idx;
+          var a = mono[idx] || 0;
+          var b = mono[Math.min(idx + 1, inLen - 1)] || 0;
+          out[j] = a + (b - a) * frac;
+        }
+        return out;
+      }
+      async function getWhisperPipeline() {
+        if (whisperPipelineInstance) return whisperPipelineInstance;
+        if (whisperIsLoading) throw new Error('Whisper is already loading — please wait.');
+        whisperIsLoading = true;
+        try {
+          setWhisperProgress('Downloading Whisper model… first use only (~40 MB)', 0);
+          /* Lazy-load Transformers.js v3 only on first tap — never on page load */
+          var mod = await import(WHISPER_CDN_URL);
+          if (mod && mod.env) {
+            try { mod.env.allowLocalModels = false; } catch (e) {}
+          }
+          var pipelineFn = mod.pipeline;
+          if (typeof pipelineFn !== 'function') throw new Error('Whisper library did not load correctly.');
+          whisperPipelineInstance = await pipelineFn('automatic-speech-recognition', WHISPER_MODEL_ID, {
+            dtype: 'q8',
+            progress_callback: function (data) {
+              if (!data) return;
+              if (data.status === 'progress' && typeof data.progress === 'number') {
+                var fileLabel = data.file ? 'Downloading model — ' + String(data.file).split('/').pop() : 'Downloading Whisper model… first use only (~40 MB)';
+                setWhisperProgress(fileLabel, data.progress);
+              } else if (data.status === 'initiate') {
+                setWhisperProgress('Downloading Whisper model… first use only (~40 MB)', 0);
+              } else if (data.status === 'done') {
+                setWhisperProgress('Model download complete', 100);
+              } else if (data.status === 'ready') {
+                setWhisperProgress('Whisper ready', 100);
+              }
+            }
+          });
+          return whisperPipelineInstance;
+        } finally {
+          whisperIsLoading = false;
+        }
+      }
+      async function runWhisperTranscription() {
+        if (!whisperBtn || whisperBtn.disabled) return;
+        if (!currentVideoFile && !video.src) {
+          setWhisperState('<strong>No video yet.</strong> Add your clip in step 01 first, then tap this button again.', true);
+          toast('Add a video clip first (step 01).');
+          return;
+        }
+        if (!currentVideoFile) {
+          setWhisperState('<strong>Please re-select your video file in step 01</strong> so Whisper can read its audio directly, then try again.', true);
+          toast('Re-select the video in step 01, then try Whisper again.');
+          return;
+        }
+        whisperBtn.disabled = true;
+        var originalBtnText = whisperBtn.textContent;
+        whisperBtn.textContent = '⏳ Whisper is working…';
+        setWhisperState('<strong>Starting Whisper…</strong> Keep this page open.');
+        setWhisperProgress('Preparing audio from your video…', 0);
+        try {
+          var audioData = await decodeVideoFileTo16kMono(currentVideoFile);
+          if (!audioData || !audioData.length) throw new Error('No audio was found in that video file.');
+          setWhisperProgress('Audio ready — loading Whisper…', 100);
+          var transcriber = await getWhisperPipeline();
+          setWhisperProgress('Transcribing… keep this page open', 100);
+          setWhisperState('<strong>Transcribing… keep this page open.</strong> Whisper is listening to your video on this device — a few minutes of video can take a while on a phone.');
+          whisperBtn.textContent = '⏳ Transcribing… keep this page open';
+          var output = await transcriber(audioData, { chunk_length_s: 30, stride_length_s: 5, return_timestamps: true });
+          var fullText = '';
+          var segments = [];
+          var detectedLang = null;
+          if (Array.isArray(output)) {
+            fullText = output.map(function (o) { return (o && o.text) || ''; }).join(' ').trim();
+          } else if (output) {
+            fullText = (output.text || '').trim();
+            detectedLang = output.language || output.detected_language || null;
+            if (Array.isArray(output.chunks)) {
+              segments = output.chunks.map(function (chunk) {
+                var ts = chunk.timestamp || [0, 0];
+                return { start: ts[0], end: (ts[1] == null ? (Number(ts[0]) || 0) + 3 : ts[1]), text: chunk.text || '' };
+              });
+              if (!detectedLang && output.chunks[0] && output.chunks[0].language) detectedLang = output.chunks[0].language;
+            }
+          }
+          if (!fullText && !segments.length) throw new Error('Whisper finished but heard no words. Check the clip has clear speech, then try again.');
+          if (detectedLang) applyDetectedLanguage(detectedLang);
+          if (fullText) transcriptBox.value = fullText;
+          else if (segments.length) transcriptBox.value = segments.map(function (s) { return s.text.trim(); }).join(' ').trim();
+          var count = feedSegmentsToLines(segments, fullText);
+          hideWhisperProgress();
+          if (count > 0) {
+            setWhisperState('<strong>Done — ' + count + ' timed line' + (count === 1 ? '' : 's') + ' added in step 05.</strong> Read every line and fix any words (small model), then translate or dub.', false);
+            toast('Whisper done — ' + count + ' lines in step 05. Check the words.');
+          } else {
+            setWhisperState('<strong>Done.</strong> Transcript is in the box below — tap “Split into timed lines” to time it.', false);
+          }
+          scheduleProjectSave();
+        } catch (err) {
+          hideWhisperProgress();
+          var msg = (err && err.message) ? err.message : String(err || 'Unknown error');
+          var isNetwork = /fetch|network|Failed to fetch|load failed|import/i.test(msg);
+          setWhisperState('<strong>Whisper could not finish:</strong> ' + esc(msg) + (isNetwork ? ' — this first load needs internet to download the model (~40 MB) from Hugging Face. Check your connection and tap the button to retry.' : ' Tap the button to retry.'), true);
+          toast('Whisper failed — see step 02 for details and retry.');
+        } finally {
+          whisperBtn.disabled = false;
+          whisperBtn.textContent = originalBtnText;
+        }
+      }
+      if (whisperBtn) whisperBtn.addEventListener('click', runWhisperTranscription);
+
+      /* ================= Microphone transcription (secondary, Web Speech) ================= */
+      var recognition = null;
+      var recognizing = false;
+      var transcribeBtn = $('transcribeBtn');
+      var transcribeState = $('transcribeState');
+      transcribeBtn.addEventListener('click', function () {
+        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+          transcribeState.textContent = 'Microphone transcription is not available in this browser. It works in Chrome on Android and desktop — or paste the transcript in the box.';
+          return;
+        }
+        if (recognizing && recognition) { recognition.stop(); return; }
+        recognition = new SR();
+        recognition.lang = sourceLang;
+        recognition.continuous = true;
+        recognition.interimResults = false;
+        recognition.onresult = function (event) {
+          var heard = '';
+          for (var i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) heard += event.results[i][0].transcript + ' ';
+          }
+          if (heard) {
+            transcriptBox.value = (transcriptBox.value.trim() + ' ' + heard).trim();
+            transcribeState.textContent = 'Listening… words are being added to the transcript box.';
+            scheduleProjectSave();
+          }
+        };
+        recognition.onerror = function (event) {
+          transcribeState.textContent = 'Transcription stopped (' + event.error + '). Check microphone permission, then try again.';
+        };
+        recognition.onend = function () {
+          recognizing = false;
+          transcribeBtn.textContent = 'Transcribe with microphone (secondary)';
+          transcribeState.textContent = 'Stopped. Check the transcript, fix any words, then tap “Split into timed lines”.';
+        };
+        try {
+          recognition.start();
+          recognizing = true;
+          transcribeBtn.textContent = 'Stop transcribing';
+          transcribeState.textContent = 'Listening… now play the clip out loud (or play it on a second device near this phone). Tap the button again to stop.';
+        } catch (e) {
+          transcribeState.textContent = 'Could not start transcription in this browser.';
+        }
+      });
+      transcriptBox.addEventListener('input', scheduleProjectSave);
+
+      /* ================= Split text into timed lines ================= */
+      function splitTextToTimedLines(rawText, totalDuration) {
+        var raw = String(rawText || '').trim();
+        if (!raw) return [];
+        var parts = raw.split(/\n+/).map(function (s) { return s.trim(); }).filter(Boolean);
+        if (parts.length === 1) {
+          parts = splitSentences(raw);
+        }
+        if (parts.length === 1 && raw.split(/\s+/).length > 14) {
+          var words = raw.split(/\s+/);
+          parts = [];
+          for (var i = 0; i < words.length; i += 12) parts.push(words.slice(i, i + 12).join(' '));
+        }
+        var total = totalDuration || safeDuration() || parts.length * 3;
+        var each = Math.max(1.5, total / parts.length);
+        return parts.map(function (text, index) {
+          var start = Math.round(index * each * 10) / 10;
+          var end = Math.round(Math.min(total, (index + 1) * each) * 10) / 10;
+          if (end <= start) end = start + 1.5;
+          return { start: start, end: end, text: text };
+        });
+      }
+      $('splitBtn').addEventListener('click', function () {
+        var raw = transcriptBox.value.trim();
+        if (!raw) { toast('Add or paste a transcript first.'); return; }
+        var lines = splitTextToTimedLines(raw);
+        setCaptions(lines);
+        toast('Split into ' + lines.length + ' timed lines — adjust the timings in step 05 if needed.');
+        scheduleProjectSave();
+      });
+
+      /* ================= MyMemory translation ================= */
+      async function mymemoryTranslate(text, srcCode, tgtCode) {
+        var res = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=' + mtCode(srcCode) + '|' + mtCode(tgtCode));
+        var json = await res.json();
+        var translated = json && json.responseData && json.responseData.translatedText;
+        if (!translated) throw new Error('empty');
+        return decodeEntities(translated);
+      }
+      function chunkTextForMT(text, maxLen) {
+        var sentences = splitSentences(text);
+        var chunks = [];
+        var cur = '';
+        sentences.forEach(function (s) {
+          if ((cur + ' ' + s).trim().length > maxLen && cur) { chunks.push(cur.trim()); cur = s; }
+          else cur = (cur + ' ' + s).trim();
+          while (cur.length > maxLen) { chunks.push(cur.slice(0, maxLen)); cur = cur.slice(maxLen); }
+        });
+        if (cur.trim()) chunks.push(cur.trim());
+        return chunks.length ? chunks : [String(text)];
+      }
+      async function translateLongText(text, srcCode, tgtCode, onProgress) {
+        var chunks = chunkTextForMT(text, 450);
+        var out = [];
+        for (var i = 0; i < chunks.length; i++) {
+          if (onProgress) onProgress(i + 1, chunks.length);
+          out.push(await mymemoryTranslate(chunks[i], srcCode, tgtCode));
+        }
+        return out.join(' ');
+      }
+      var translateState = $('translateState');
+      $('translateBtn').addEventListener('click', async function () {
+        var lines = getCaptions().filter(function (c) { return c.text.trim(); });
+        if (!lines.length) { toast('Add lines first — transcribe or split a transcript.'); return; }
+        var src = sourceLang.slice(0, 2);
+        var tgt = targetLang;
+        if (src === tgt) { toast('The clip language and dub language are the same — pick a different “Dub / translate lines into”.'); return; }
+        var btn = this;
+        btn.disabled = true;
+        var done = 0;
+        var failed = false;
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i];
+          translateState.textContent = 'Translating line ' + (i + 1) + ' of ' + lines.length + '…';
+          try {
+            line.text = await mymemoryTranslate(line.text.trim(), src, tgt);
+            var row = captionList.querySelector('.caption-row[data-id="' + line.id + '"]');
+            if (row) row.querySelector('.cap-text').value = line.text;
+            done++;
+          } catch (e) {
+            failed = true;
+            break;
+          }
+        }
+        btn.disabled = false;
+        refreshCaptionPreview();
+        scheduleProjectSave();
+        if (failed) {
+          translateState.textContent = 'Translation stopped — it needs internet and the free service can rate-limit. Lines done so far: ' + done + '. You can also type translations straight into the lines in step 05.';
+        } else {
+          translateState.textContent = 'Translated ' + done + ' lines. Read them in step 05 and fix any wording — then dub in step 06.';
+          toast('Translation done — check the lines in step 05.');
+        }
+      });
+
+      /* ================= Gemini (user's own key, device-only) ================= */
+      var GEMINI_MODEL = 'gemini-2.5-flash';
+      async function geminiGenerate(promptText, wantJson) {
+        var key = geminiKey();
+        if (!key) throw new Error('NO_KEY');
+        var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent?key=' + encodeURIComponent(key);
+        var body = {
+          contents: [{ parts: [{ text: promptText }] }],
+          generationConfig: { temperature: wantJson ? 0.3 : 0.7 }
+        };
+        if (wantJson) body.generationConfig.responseMimeType = 'application/json';
+        var res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        var json = null;
+        try { json = await res.json(); } catch (e) {}
+        if (!res.ok) {
+          var gmsg = (json && json.error && json.error.message) || ('HTTP ' + res.status);
+          throw new Error('Gemini said: ' + gmsg);
+        }
+        var parts = json && json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts;
+        var text = parts ? parts.map(function (p) { return p.text || ''; }).join('') : '';
+        if (!text.trim()) throw new Error('Gemini returned an empty answer. Try again.');
+        return text;
+      }
+      function geminiErrorText(err) {
+        if (err && err.message === 'NO_KEY') return 'No Gemini key saved. Add your free AI Studio key in Settings first.';
+        return (err && err.message) ? err.message : String(err || 'Unknown error');
+      }
+
+      /* ================= Story analysis ================= */
+      var analysisState = $('analysisState');
+      var analysisStats = $('analysisStats');
+      var analysisBanner = $('analysisModeBanner');
+      function refreshAnalysisBanner() {
+        if (geminiKey()) {
+          analysisBanner.className = 'mode-banner ai';
+          analysisBanner.innerHTML = '<strong>AI mode (your Gemini key).</strong> The analysis below is written by Gemini from your transcript. It can still make mistakes — the cards are editable, so correct anything that does not match your video.';
+        } else {
+          analysisBanner.className = 'mode-banner';
+          analysisBanner.innerHTML = '<strong>Basic mode (no AI key).</strong> Without a Gemini key, StoryForge can only count words and show the first / middle / last lines — it cannot truly understand the story. Add your free Gemini key in <strong>Settings</strong> for real AI story analysis.';
+        }
+      }
+      function getAnalysis() {
+        return {
+          summary: $('anSummary').value.trim(),
+          characters: $('anCharacters').value.trim(),
+          events: $('anEvents').value.trim(),
+          twist: $('anTwist').value.trim(),
+          ending: $('anEnding').value.trim()
+        };
+      }
+      function setAnalysis(a) {
+        a = a || {};
+        $('anSummary').value = a.summary || '';
+        $('anCharacters').value = a.characters || '';
+        $('anEvents').value = a.events || '';
+        $('anTwist').value = a.twist || '';
+        $('anEnding').value = a.ending || '';
+      }
+      ['anSummary', 'anCharacters', 'anEvents', 'anTwist', 'anEnding'].forEach(function (id) {
+        $(id).addEventListener('input', scheduleProjectSave);
+      });
+      function transcriptForAI(maxChars) {
+        var t = transcriptBox.value.trim();
+        if (!t) {
+          var lines = getCaptions().filter(function (c) { return c.text.trim(); });
+          t = lines.map(function (c) { return c.text.trim(); }).join(' ');
+        }
+        if (t.length > maxChars) t = t.slice(0, maxChars) + ' …[transcript cut for length]';
+        return t;
+      }
+      function renderBasicStats() {
+        var text = transcriptForAI(1000000);
+        var words = countWords(text);
+        var dur = safeDuration();
+        var sentences = splitSentences(text);
+        var stats = '<span>Words <b>' + words + '</b></span>';
+        stats += '<span>Sentences <b>' + sentences.length + '</b></span>';
+        if (dur > 0) {
+          stats += '<span>Clip length <b>' + fmtTime(dur) + '</b></span>';
+          if (words > 0) stats += '<span>Speaking rate <b>≈ ' + Math.round(words / (dur / 60)) + ' words/min</b></span>';
+        }
+        analysisStats.innerHTML = stats;
+        return { words: words, sentences: sentences, dur: dur };
+      }
+      $('analyzeBtn').addEventListener('click', async function () {
+        var transcript = transcriptForAI(12000);
+        if (!transcript) {
+          analysisState.textContent = 'Nothing to analyze yet — transcribe the clip (step 02) or type a transcript first.';
+          toast('Transcribe first, then analyze.');
+          return;
+        }
+        var btn = this;
+        btn.disabled = true;
+        try {
+          if (geminiKey()) {
+            analysisState.textContent = 'Asking Gemini to read the transcript and analyze the story…';
+            var prompt = 'You are a story analyst for a video recap channel. Read this video transcript and analyze the story.\n' +
+              'Rules: use ONLY facts from the transcript. Never invent characters, events or endings that are not in it. If something is not in the transcript, write an empty string for that field.\n' +
+              'Return ONLY a JSON object with exactly these fields:\n' +
+              '{"summary": "2-4 sentence summary of the whole story", "characters": ["main character names, one per item"], "keyEvents": ["the important events in story order, one per item"], "plotTwist": "the main surprise turn, or empty string", "ending": "how the story ends, or empty string"}\n\n' +
+              'TRANSCRIPT:\n' + transcript;
+            var raw = await geminiGenerate(prompt, true);
+            var parsed = null;
+            try { parsed = JSON.parse(raw); } catch (e) {
+              var m = raw.match(/\{[\s\S]*\}/);
+              if (m) { try { parsed = JSON.parse(m[0]); } catch (e2) {} }
+            }
+            if (!parsed) throw new Error('Gemini answered in an unexpected format. Tap Analyze to try again.');
+            setAnalysis({
+              summary: parsed.summary || '',
+              characters: Array.isArray(parsed.characters) ? parsed.characters.join('\n') : (parsed.characters || ''),
+              events: Array.isArray(parsed.keyEvents) ? parsed.keyEvents.join('\n') : (parsed.keyEvents || ''),
+              twist: parsed.plotTwist || '',
+              ending: parsed.ending || ''
+            });
+            renderBasicStats();
+            analysisState.innerHTML = '<strong>AI analysis done.</strong> Read every card and fix anything that does not match your video.';
+            toast('Story analysis done — check the cards.');
+          } else {
+            var info = renderBasicStats();
+            var s = info.sentences;
+            var starter = '';
+            if (s.length) {
+              starter = 'BASIC STARTER (not AI — just lines pulled from your transcript):\n' +
+                '• Starts with: ' + s[0] + '\n' +
+                (s.length > 2 ? '• Middle: ' + s[Math.floor(s.length / 2)] + '\n' : '') +
+                '• Ends with: ' + s[s.length - 1];
+            }
+            var cur = getAnalysis();
+            setAnalysis({
+              summary: starter || cur.summary,
+              characters: cur.characters,
+              events: cur.events,
+              twist: cur.twist,
+              ending: cur.ending
+            });
+            analysisState.innerHTML = '<strong>Basic mode — no AI key.</strong> Word count and speaking rate are above, and the summary card holds a starter made from the first / middle / last lines of your transcript. Add a free Gemini key in Settings for a real story analysis.';
+            toast('Basic analysis done (no AI key).');
+          }
+        } catch (err) {
+          analysisState.textContent = 'Analysis failed: ' + geminiErrorText(err);
+          toast('Analysis failed — see step 03.');
+        } finally {
+          btn.disabled = false;
+          scheduleProjectSave();
+        }
+      });
+
+      /* ================= Recap script generator ================= */
+      var scriptLenSecs = 60;
+      var scriptTone = 'Dramatic';
+      var scriptPrevText = null;
+      var scriptBox = $('scriptBox');
+      var scriptState = $('scriptState');
+      var scriptMeta = $('scriptMeta');
+      segControl('scriptLenSeg', function (data) { scriptLenSecs = Number(data.secs) || 60; updateScriptMeta(); });
+      segControl('scriptToneSeg', function (data) { scriptTone = data.tone; });
+      function updateScriptMeta() {
+        var text = scriptBox.value.trim();
+        var words = countWords(text);
+        var secs = words ? Math.round(words / 2.5) : 0;
+        scriptMeta.textContent = text
+          ? 'Script: ' + words + ' words ≈ ' + secs + ' seconds of narration (at ~150 words/min). Target was ' + scriptLenSecs + ' sec.'
+          : 'Target: about ' + Math.round(scriptLenSecs * 2.5) + ' words for ' + scriptLenSecs + ' sec of narration.';
+      }
+      scriptBox.addEventListener('input', function () { updateScriptMeta(); scheduleProjectSave(); });
+      function basicPickScript(transcript, targetSecs) {
+        var sentences = splitSentences(transcript);
+        if (!sentences.length) return '';
+        var targetWords = Math.round(targetSecs * 2.5);
+        var totalWords = countWords(transcript);
+        if (totalWords <= targetWords) return sentences.join(' ');
+        var picked = [];
+        var pickedWords = 0;
+        var step = Math.max(1, Math.floor(sentences.length / Math.max(3, Math.round(targetWords / 12))));
+        for (var i = 0; i < sentences.length && pickedWords < targetWords; i += step) {
+          picked.push(sentences[i]);
+          pickedWords += countWords(sentences[i]);
+        }
+        var lastS = sentences[sentences.length - 1];
+        if (picked[picked.length - 1] !== lastS) picked.push(lastS);
+        return picked.join(' ');
+      }
+      async function generateScript() {
+        var transcript = transcriptForAI(12000);
+        if (!transcript) {
+          scriptState.textContent = 'Nothing to write from yet — transcribe the clip (step 02) first.';
+          toast('Transcribe first, then generate the script.');
+          return;
+        }
+        var targetWords = Math.round(scriptLenSecs * 2.5);
+        var genBtn = $('genScriptBtn');
+        var regenBtn = $('regenScriptBtn');
+        genBtn.disabled = true;
+        regenBtn.disabled = true;
+        try {
+          if (geminiKey()) {
+            scriptState.textContent = 'Asking Gemini to write a ' + scriptLenSecs + '-second ' + scriptTone.toLowerCase() + ' recap script…';
+            var an = getAnalysis();
+            var analysisText = '';
+            if (an.summary || an.characters || an.events || an.ending) {
+              analysisText = '\n\nSTORY ANALYSIS (already extracted — stay consistent with it):\n' +
+                (an.summary ? 'Summary: ' + an.summary + '\n' : '') +
+                (an.characters ? 'Characters: ' + an.characters.replace(/\n/g, ', ') + '\n' : '') +
+                (an.events ? 'Key events: ' + an.events.replace(/\n/g, ' | ') + '\n' : '') +
+                (an.twist ? 'Plot twist: ' + an.twist + '\n' : '') +
+                (an.ending ? 'Ending: ' + an.ending : '');
+            }
+            var prompt = 'You are a narration writer for a movie recap channel. Write an original recap narration script from the transcript below.\n' +
+              'HARD RULES:\n' +
+              '- Stay 100% accurate to the transcript. Never invent events, characters, names or endings that are not in it.\n' +
+              '- Keep every character name exactly as written in the transcript.\n' +
+              '- Length: about ' + targetWords + ' words (roughly ' + scriptLenSecs + ' seconds spoken at 150 words per minute). Do not go far over.\n' +
+              '- Tone: ' + scriptTone + '.\n' +
+              '- Write ONLY the narration text — short spoken lines, one line per sentence, no headings, no stage directions, no explanations.' +
+              analysisText + '\n\nTRANSCRIPT:\n' + transcript;
+            var text = await geminiGenerate(prompt, false);
+            scriptBox.value = text.trim();
+            scriptState.innerHTML = '<strong>AI script written by Gemini.</strong> Read it against your video and edit anything that is not accurate.';
+            toast('Recap script generated.');
+          } else {
+            scriptBox.value = basicPickScript(transcript, scriptLenSecs);
+            scriptState.innerHTML = '<strong>Basic picker (not AI).</strong> These are real sentences chosen from your transcript, spread across the story to roughly fit ' + scriptLenSecs + ' seconds. Read and rewrite them into your own narration — or add a Gemini key in Settings for an AI-written script.';
+            toast('Basic script picked from your transcript.');
+          }
+          updateScriptMeta();
+        } catch (err) {
+          scriptState.textContent = 'Script generation failed: ' + geminiErrorText(err);
+          toast('Script generation failed — see step 04.');
+        } finally {
+          genBtn.disabled = false;
+          regenBtn.disabled = false;
+          scheduleProjectSave();
+        }
+      }
+      $('genScriptBtn').addEventListener('click', generateScript);
+      $('regenScriptBtn').addEventListener('click', generateScript);
+      $('scriptToLinesBtn').addEventListener('click', function () {
+        var text = scriptBox.value.trim();
+        if (!text) { toast('Generate or write a script first.'); return; }
+        var lines = splitTextToTimedLines(text, safeDuration() || scriptLenSecs);
+        setCaptions(lines);
+        toast('Script placed into ' + lines.length + ' timed lines (step 05).');
+        scheduleProjectSave();
+      });
+      $('scriptTranslateBtn').addEventListener('click', async function () {
+        var text = scriptBox.value.trim();
+        if (!text) { toast('Generate or write a script first.'); return; }
+        var src = sourceLang.slice(0, 2);
+        var tgt = targetLang;
+        if (src === tgt) { toast('Script language and dub language are the same — change “Dub / translate lines into” in step 02.'); return; }
+        var btn = this;
+        btn.disabled = true;
+        scriptState.textContent = 'Translating script…';
+        try {
+          var translated = await translateLongText(text, src, tgt, function (i, n) {
+            scriptState.textContent = 'Translating script… piece ' + i + ' of ' + n;
+          });
+          scriptPrevText = scriptBox.value;
+          $('scriptUndoBtn').disabled = false;
+          scriptBox.value = translated;
+          scriptState.textContent = 'Script translated (' + src + ' → ' + tgt + '). Check every line — machine translation can word things oddly. Undo is available if you need the original back.';
+          updateScriptMeta();
+          scheduleProjectSave();
+        } catch (e) {
+          scriptState.textContent = 'Script translation stopped — it needs internet and the free service can rate-limit. Your original script is unchanged.';
+        } finally {
+          btn.disabled = false;
+        }
+      });
+      $('scriptUndoBtn').addEventListener('click', function () {
+        if (scriptPrevText == null) return;
+        scriptBox.value = scriptPrevText;
+        scriptPrevText = null;
+        this.disabled = true;
+        updateScriptMeta();
+        scheduleProjectSave();
+        toast('Original script restored.');
+      });
+      $('scriptCopyBtn').addEventListener('click', function () {
+        var text = scriptBox.value;
+        if (!text.trim()) { toast('The script is empty.'); return; }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () { toast('Script copied.'); }, function () { toast('Copy failed — select the text and copy manually.'); });
+        } else {
+          scriptBox.select();
+          try { document.execCommand('copy'); toast('Script copied.'); } catch (e) { toast('Copy failed — select the text and copy manually.'); }
+        }
+      });
+      function getScriptData() {
+        return { text: scriptBox.value, lengthSecs: scriptLenSecs, tone: scriptTone };
+      }
+      function setScriptData(s) {
+        s = s || {};
+        scriptBox.value = s.text || '';
+        scriptLenSecs = Number(s.lengthSecs) || 60;
+        scriptTone = s.tone || 'Dramatic';
+        setSegValue('scriptLenSeg', 'secs', scriptLenSecs);
+        setSegValue('scriptToneSeg', 'tone', scriptTone);
+        updateScriptMeta();
+      }
+
+      /* ================= Projects (localStorage, this device only) ================= */
+      var projects = [];
+      try {
+        var savedProjects = JSON.parse(localStorage.getItem(PROJECTS_KEY) || '[]');
+        if (Array.isArray(savedProjects)) projects = savedProjects;
+      } catch (e) { projects = []; }
+      var currentProjectId = null;
+      var projectSaveTimer = 0;
+      function persistProjects() {
+        try { localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects)); }
+        catch (e) { $('projectSaveState').textContent = 'Could not save — this browser storage is full or blocked.'; }
+      }
+      function collectProjectData() {
+        return {
+          name: ($('projectName').value || '').trim(),
+          videoName: videoMeta.name || '',
+          videoMeta: { size: videoMeta.size || 0, duration: videoMeta.duration || 0, width: videoMeta.width || 0, height: videoMeta.height || 0 },
+          transcript: transcriptBox.value,
+          lines: getCaptions().map(function (c) { return { start: c.start, end: c.end, text: c.text }; }),
+          analysis: getAnalysis(),
+          script: getScriptData(),
+          sourceLang: sourceLang,
+          targetLang: targetLang,
+          aspect: aspectMode
+        };
+      }
+      function saveCurrentProject(silent) {
+        var data = collectProjectData();
+        var now = Date.now();
+        var proj = null;
+        if (currentProjectId) {
+          for (var i = 0; i < projects.length; i++) if (projects[i].id === currentProjectId) { proj = projects[i]; break; }
+        }
+        if (!proj) {
+          proj = { id: 'p' + now.toString(36) + Math.floor(Math.random() * 9999), createdAt: now };
+          projects.unshift(proj);
+          currentProjectId = proj.id;
+        }
+        Object.keys(data).forEach(function (k) { proj[k] = data[k]; });
+        if (!proj.name) proj.name = proj.videoName ? proj.videoName.replace(/\.[^.]+$/, '') : 'Untitled recap';
+        proj.updatedAt = now;
+        persistProjects();
+        if (!silent) {
+          $('projectSaveState').textContent = 'Saved on this device · ' + new Date(now).toLocaleTimeString();
+        }
+        if (currentView === 'projects') renderProjects();
+        if (currentView === 'scripts') renderScripts();
+        return proj;
+      }
+      function scheduleProjectSave() {
+        clearTimeout(projectSaveTimer);
+        projectSaveTimer = setTimeout(function () { saveCurrentProject(true); }, 700);
+      }
+      function ensureProjectForVideo(file) {
+        if (!currentProjectId) {
+          var proj = saveCurrentProject(true);
+          if (proj && !$('projectName').value) $('projectName').value = proj.name;
+        }
+      }
+      function applyProjectData(p) {
+        currentProjectId = p.id;
+        $('projectName').value = p.name || '';
+        transcriptBox.value = p.transcript || '';
+        videoMeta = {
+          name: p.videoName || '',
+          size: (p.videoMeta && p.videoMeta.size) || 0,
+          duration: (p.videoMeta && p.videoMeta.duration) || 0,
+          width: (p.videoMeta && p.videoMeta.width) || 0,
+          height: (p.videoMeta && p.videoMeta.height) || 0
+        };
+        setCaptions(p.lines || []);
+        setAnalysis(p.analysis || {});
+        setScriptData(p.script || {});
+        sourceLang = p.sourceLang || 'en-US';
+        targetLang = p.targetLang || 'my';
+        aspectMode = p.aspect || 'original';
+        setSegValue('srcLangSeg', 'lang', sourceLang);
+        setSegValue('tgtLangSeg', 'lang', targetLang);
+        setSegValue('aspectSeg', 'aspect', aspectMode);
+        populateVoices();
+        if (p.videoName) {
+          $('uploadTitle').textContent = p.videoName;
+          $('uploadHint').textContent = 'Saved project — re-add this video file to preview / render (files are not stored)';
+          $('metaName').textContent = p.videoName;
+          $('metaSize').textContent = fmtSize(videoMeta.size);
+          $('metaDuration').textContent = videoMeta.duration ? fmtTime(videoMeta.duration) : '—';
+          $('metaDims').textContent = videoMeta.width ? videoMeta.width + '×' + videoMeta.height : '—';
+          $('fileMeta').classList.add('show');
+        }
+      }
+      function resetEditor() {
+        currentProjectId = null;
+        $('projectName').value = '';
+        transcriptBox.value = '';
+        setCaptions([]);
+        setAnalysis({});
+        setScriptData({ text: '', lengthSecs: 60, tone: 'Dramatic' });
+        analysisStats.innerHTML = '';
+        analysisState.textContent = 'Transcribe first, then analyze. Everything below is editable — fix anything the analysis gets wrong.';
+        scriptState.textContent = 'With a Gemini key (Settings) the script is written by AI from your transcript + story analysis — accurate to the video, no invented plot. Without a key, a basic picker chooses real sentences from your transcript to roughly fit the length (labeled basic, not AI).';
+      }
+      $('saveProjectBtn').addEventListener('click', function () {
+        saveCurrentProject(false);
+        toast('Project saved on this device.');
+        renderProjects();
+      });
+      $('projectName').addEventListener('input', scheduleProjectSave);
+      $('newProjectBtn').addEventListener('click', function () {
+        saveCurrentProject(true);
+        resetEditor();
+        videoMeta = { name: '', size: 0, duration: 0, width: 0, height: 0 };
+        toast('New project started. Your previous work stays in My Projects.');
+        renderProjects();
+      });
+      function renderProjects() {
+        var list = $('projectList');
+        list.innerHTML = '';
+        if (!projects.length) {
+          list.innerHTML = '<div class="proj-card"><h3>No projects yet</h3><p class="proj-meta">Create a video in the Create Video tab — it will be saved here automatically, on this device.</p></div>';
+          return;
+        }
+        projects.forEach(function (p) {
+          var card = document.createElement('div');
+          card.className = 'proj-card';
+          var when = p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '';
+          var lineCount = (p.lines || []).filter(function (l) { return (l.text || '').trim(); }).length;
+          card.innerHTML = '<h3>' + esc(p.name || 'Untitled recap') + (p.id === currentProjectId ? ' <span style="color:var(--gold);font-size:.75rem">● OPEN NOW</span>' : '') + '</h3>' +
+            '<p class="proj-meta">' + esc(when) + (p.videoName ? ' · Video: ' + esc(p.videoName) : ' · No video added') + ' · ' + lineCount + ' timed lines' + ((p.script && p.script.text) ? ' · script ✓' : ' · no script yet') + '</p>' +
+            '<div class="proj-actions">' +
+              '<button type="button" class="mini-btn" data-act="open">Open</button>' +
+              '<button type="button" class="mini-btn" data-act="dup">Duplicate</button>' +
+              '<button type="button" class="mini-btn danger" data-act="del">Delete</button>' +
+            '</div>';
+          card.querySelector('[data-act="open"]').addEventListener('click', function () {
+            applyProjectData(p);
+            switchView('create');
+            toast('Project opened. Re-add the video file if you want to preview or render.');
+          });
+          card.querySelector('[data-act="dup"]').addEventListener('click', function () {
+            var copy = JSON.parse(JSON.stringify(p));
+            copy.id = 'p' + Date.now().toString(36) + Math.floor(Math.random() * 9999);
+            copy.name = (p.name || 'Untitled recap') + ' (copy)';
+            copy.createdAt = Date.now();
+            copy.updatedAt = Date.now();
+            projects.unshift(copy);
+            persistProjects();
+            renderProjects();
+            toast('Project duplicated.');
+          });
+          card.querySelector('[data-act="del"]').addEventListener('click', function () {
+            if (!window.confirm('Delete this project from this device? This cannot be undone.')) return;
+            projects = projects.filter(function (x) { return x.id !== p.id; });
+            if (currentProjectId === p.id) currentProjectId = null;
+            persistProjects();
+            renderProjects();
+            toast('Project deleted.');
+          });
+          list.appendChild(card);
+        });
+      }
+
+      /* ================= Recap Scripts view ================= */
+      function renderScripts() {
+        var list = $('scriptList');
+        list.innerHTML = '';
+        var withScripts = projects.filter(function (p) { return p.script && (p.script.text || '').trim(); });
+        if (!withScripts.length) {
+          list.innerHTML = '<div class="proj-card"><h3>No scripts yet</h3><p class="proj-meta">Generate a recap script inside a project (Create Video → step 04) and it will appear here.</p></div>';
+          return;
+        }
+        withScripts.forEach(function (p) {
+          var card = document.createElement('div');
+          card.className = 'proj-card';
+          card.innerHTML = '<h3>' + esc(p.name || 'Untitled recap') + '</h3>' +
+            '<p class="proj-meta">Tone: ' + esc((p.script && p.script.tone) || 'Dramatic') + ' · Target: ' + esc((p.script && p.script.lengthSecs) || 60) + ' sec · ' + countWords(p.script.text) + ' words ≈ ' + Math.round(countWords(p.script.text) / 2.5) + ' sec spoken</p>';
+          var ta = document.createElement('textarea');
+          ta.style.minHeight = '120px';
+          ta.style.marginTop = '10px';
+          ta.value = p.script.text || '';
+          ta.addEventListener('input', function () {
+            p.script.text = ta.value;
+            p.updatedAt = Date.now();
+            persistProjects();
+          });
+          card.appendChild(ta);
+          var actions = document.createElement('div');
+          actions.className = 'proj-actions';
+          actions.innerHTML = '<button type="button" class="mini-btn" data-act="open">Open project</button>' +
+            '<button type="button" class="mini-btn" data-act="copy">Copy</button>' +
+            '<button type="button" class="mini-btn" data-act="dl">Download .txt</button>';
+          actions.querySelector('[data-act="open"]').addEventListener('click', function () { applyProjectData(p); switchView('create'); });
+          actions.querySelector('[data-act="copy"]').addEventListener('click', function () {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(ta.value).then(function () { toast('Script copied.'); }, function () { toast('Copy failed — select the text and copy manually.'); });
+            } else { ta.select(); try { document.execCommand('copy'); toast('Script copied.'); } catch (e) { toast('Copy failed.'); } }
+          });
+          actions.querySelector('[data-act="dl"]').addEventListener('click', function () {
+            downloadTextFile((p.name || 'recap-script').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() + '-script.txt', ta.value);
+            toast('Script downloaded.');
+          });
+          card.appendChild(actions);
+          list.appendChild(card);
+        });
+      }
+
+      /* ================= Translation tab ================= */
+      fillLangSelect($('trFromLang'), 'en');
+      fillLangSelect($('trToLang'), 'my');
+      var trState = $('trState');
+      $('trTranslateBtn').addEventListener('click', async function () {
+        var text = $('trInput').value.trim();
+        if (!text) { toast('Type or paste the original text first.'); return; }
+        var src = $('trFromLang').value;
+        var tgt = $('trToLang').value;
+        if (src === tgt) { toast('From and To languages are the same.'); return; }
+        var btn = this;
+        btn.disabled = true;
+        try {
+          var out = await translateLongText(text, src, tgt, function (i, n) {
+            trState.textContent = 'Translating… piece ' + i + ' of ' + n + ' (free MyMemory service).';
+          });
+          $('trOutput').value = out;
+          trState.textContent = 'Done. Compare with the original and edit anything that reads oddly before you use it.';
+          toast('Translation done — check it before use.');
+        } catch (e) {
+          trState.textContent = 'Translation stopped — it needs internet and the free service can rate-limit. Wait a moment and try again.';
+        } finally {
+          btn.disabled = false;
+        }
+      });
+      $('trSwapBtn').addEventListener('click', function () {
+        var a = $('trFromLang').value;
+        $('trFromLang').value = $('trToLang').value;
+        $('trToLang').value = a;
+        var t = $('trInput').value;
+        $('trInput').value = $('trOutput').value;
+        $('trOutput').value = t;
+      });
+      $('trCopyBtn').addEventListener('click', function () {
+        var text = $('trOutput').value;
+        if (!text.trim()) { toast('Nothing to copy yet.'); return; }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () { toast('Translation copied.'); }, function () { toast('Copy failed — select the text and copy manually.'); });
+        } else { $('trOutput').select(); try { document.execCommand('copy'); toast('Translation copied.'); } catch (e) { toast('Copy failed.'); } }
+      });
+      $('trSendBtn').addEventListener('click', function () {
+        var text = $('trOutput').value.trim();
+        if (!text) { toast('Translate something first.'); return; }
+        scriptBox.value = text;
+        updateScriptMeta();
+        scheduleProjectSave();
+        switchView('create');
+        toast('Translation placed in the recap script (step 04).');
+      });
+
+      /* ================= Settings wiring ================= */
+      var keyInput = $('geminiKeyInput');
+      var keyState = $('keyState');
+      function refreshKeyState() {
+        keyState.textContent = geminiKey()
+          ? 'A Gemini key is saved on this device. AI analysis + AI scripts are available in Create Video.'
+          : 'No key saved — basic (non-AI) analysis and script modes are active.';
+        refreshAnalysisBanner();
+      }
+      keyInput.value = settings.geminiKey || '';
+      keyInput.addEventListener('input', function () {
+        settings.geminiKey = keyInput.value;
+        saveSettings();
+      });
+      $('toggleKeyBtn').addEventListener('click', function () {
+        keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
+      });
+      $('clearKeyBtn').addEventListener('click', function () {
+        keyInput.value = '';
+        settings.geminiKey = '';
+        saveSettings();
+        toast('Gemini key removed from this device.');
+      });
+      var backendInput = $('backendUrlInput');
+      backendInput.value = settings.backendUrl || '';
+      backendInput.addEventListener('input', function () {
+        settings.backendUrl = backendInput.value;
+        saveSettings();
+        $('backendState').textContent = backendBase()
+          ? 'AUTO server mode is available in Create Video → Export, using: ' + backendBase()
+          : 'No backend saved — AUTO server mode stays off.';
+      });
+      $('clearAllBtn').addEventListener('click', function () {
+        if (!window.confirm('Erase ALL StoryForge data on this device — projects, scripts, settings and your Gemini key? This cannot be undone.')) return;
+        try {
+          localStorage.removeItem(PROJECTS_KEY);
+          localStorage.removeItem(SETTINGS_KEY);
+        } catch (e) {}
+        projects = [];
+        settings = { geminiKey: '', backendUrl: '', defaultVoiceIndex: '' };
+        keyInput.value = '';
+        backendInput.value = '';
+        resetEditor();
+        refreshKeyState();
+        refreshAutoAvailability();
+        $('clearState').textContent = 'Everything on this device was erased.';
+        toast('All StoryForge data erased from this device.');
+      });
+      function refreshAutoAvailability() {
+        var has = !!backendBase();
+        $('autoControls').hidden = !has;
+        $('autoNoBackend').hidden = has;
+        if (has) $('autoState').textContent = 'Server: ' + backendBase();
+      }
+
+      /* ================= On-device export (canvas + MediaRecorder) ================= */
+      function fitCanvas() {
+        if (aspectMode === '9:16') { canvas.width = 720; canvas.height = 1280; return; }
+        if (aspectMode === '16:9') { canvas.width = 1280; canvas.height = 720; return; }
+        if (aspectMode === '1:1') { canvas.width = 960; canvas.height = 960; return; }
+        var width = video.videoWidth || 1280;
+        var height = video.videoHeight || 720;
+        var maxSide = 1280;
+        var scale = Math.min(1, maxSide / Math.max(width, height));
+        canvas.width = Math.max(2, Math.round(width * scale / 2) * 2);
+        canvas.height = Math.max(2, Math.round(height * scale / 2) * 2);
+      }
+      function wrapText(text, maxWidth) {
+        var lines = [];
+        var paragraphs = text.split(/\n/);
+        paragraphs.forEach(function (paragraph) {
+          var words = paragraph.split(/\s+/).filter(Boolean);
+          if (!words.length) { lines.push(''); return; }
+          var line = words[0];
+          for (var i = 1; i < words.length; i++) {
+            var test = line + ' ' + words[i];
+            if (ctx.measureText(test).width > maxWidth) { lines.push(line); line = words[i]; }
+            else line = test;
+          }
+          lines.push(line);
+        });
+        return lines.slice(0, 4);
+      }
+      function drawFrame() {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        try {
+          var vw = video.videoWidth || canvas.width;
+          var vh = video.videoHeight || canvas.height;
+          var coverScale = Math.max(canvas.width / vw, canvas.height / vh);
+          var dw = vw * coverScale;
+          var dh = vh * coverScale;
+          ctx.drawImage(video, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
+        } catch (e) {}
+        var text = burnCaptions ? activeCaptionAt(video.currentTime || 0) : '';
+        if (text) {
+          var fontSize = Math.max(20, Math.round(canvas.height * .045 * (subStyle.size / 100)));
+          ctx.font = '700 ' + fontSize + 'px "Noto Sans Myanmar", "DM Sans", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.lineJoin = 'round';
+          var lines = wrapText(text, canvas.width * .84);
+          var lineHeight = fontSize * 1.32;
+          var anchor = subStyle.position === 'top' ? canvas.height * .14 : (subStyle.position === 'middle' ? canvas.height * .5 : canvas.height * .86);
+          var baseY = anchor - ((lines.length - 1) * lineHeight / 2);
+          ctx.strokeStyle = 'rgba(0,0,0,.95)';
+          ctx.lineWidth = Math.max(5, fontSize * .16);
+          ctx.fillStyle = subStyle.color;
+          lines.forEach(function (line, index) {
+            var y = baseY + index * lineHeight;
+            ctx.strokeText(line, canvas.width / 2, y);
+            ctx.fillText(line, canvas.width / 2, y);
+          });
+        }
+        if (isExporting) animationId = requestAnimationFrame(drawFrame);
+      }
+      function chooseVideoMime() {
+        var choices = [
+          'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+          'video/mp4',
+          'video/webm;codecs=vp9,opus',
+          'video/webm;codecs=vp8,opus',
+          'video/webm'
+        ];
+        for (var i = 0; i < choices.length; i++) {
+          if (MediaRecorder.isTypeSupported(choices[i])) return choices[i];
+        }
+        return '';
+      }
+      function finishExportUI(success) {
+        isExporting = false;
+        video.pause();
+        voiceAudio.pause();
+        exportBtn.disabled = !video.src;
+        playBtn.disabled = !video.src;
+        if (success) toast('Your recap video is ready.');
+      }
+      async function exportVideo() {
+        if (!video.src || isExporting) return;
+        if (!window.MediaRecorder || !canvas.captureStream) {
+          toast('Video rendering is not supported in this browser. Try Chrome on Android.');
+          return;
+        }
+        if (!setupAudioGraph()) {
+          toast('Audio rendering is not supported in this browser.');
+          return;
+        }
+        try {
+          isExporting = true;
+          exportBtn.disabled = true;
+          playBtn.disabled = true;
+          progressWrap.style.display = 'block';
+          downloadResult.classList.remove('show');
+          progressLabel.textContent = 'Rendering…';
+          progressBar.style.width = '0%';
+          progressValue.textContent = '0%';
+          resetPlayback();
+          fitCanvas();
+          drawFrame();
+          var canvasStream = canvas.captureStream(30);
+          var combined = new MediaStream();
+          canvasStream.getVideoTracks().forEach(function (track) { combined.addTrack(track); });
+          captureDestination.stream.getAudioTracks().forEach(function (track) { combined.addTrack(track); });
+          var mime = chooseVideoMime();
+          var options = mime ? { mimeType: mime, videoBitsPerSecond: 5000000 } : { videoBitsPerSecond: 5000000 };
+          var chunks = [];
+          renderRecorder = new MediaRecorder(combined, options);
+          renderRecorder.ondataavailable = function (event) { if (event.data && event.data.size) chunks.push(event.data); };
+          renderRecorder.onerror = function () {
+            toast('Rendering stopped unexpectedly.');
+            finishExportUI(false);
+          };
+          renderRecorder.onstop = function () {
+            cancelAnimationFrame(animationId);
+            var outputType = renderRecorder.mimeType || mime || 'video/webm';
+            var extension = outputType.indexOf('mp4') !== -1 ? 'mp4' : 'webm';
+            var blob = new Blob(chunks, { type: outputType });
+            if (resultUrl) URL.revokeObjectURL(resultUrl);
+            resultUrl = URL.createObjectURL(blob);
+            downloadResult.href = resultUrl;
+            downloadResult.download = 'storyforge-recap-' + Date.now() + '.' + extension;
+            downloadResult.textContent = 'Download finished video (.' + extension.toUpperCase() + ')';
+            downloadResult.classList.add('show');
+            progressBar.style.width = '100%';
+            progressValue.textContent = '100%';
+            progressLabel.textContent = 'Ready — tap download below';
+            finishExportUI(true);
+          };
+          renderRecorder.start(1000);
+          spokenIds = {};
+          playedRecIds = {};
+          if (dubMode === 'ai') toast('Rendering: the AI voice plays live during render, but a browser cannot record it into the file — the export carries your recorded lines / original sound. For AI voice inside the file, use AUTO server mode.');
+          await video.play();
+        } catch (error) {
+          cancelAnimationFrame(animationId);
+          finishExportUI(false);
+          toast('Could not render this video. Try Chrome on Android.');
+        }
+      }
+      exportBtn.addEventListener('click', exportVideo);
+      function downloadSrt() {
+        var usable = getCaptions().filter(function (item) { return item.text.trim() && item.end > item.start; });
+        if (!usable.length) {
+          toast('Add at least one timed caption first.');
+          return;
+        }
+        var body = usable.map(function (item, index) {
+          return (index + 1) + '\n' + srtTime(item.start) + ' --> ' + srtTime(item.end) + '\n' + item.text.trim() + '\n';
+        }).join('\n');
+        downloadTextFile('storyforge-subtitles.srt', body);
+        toast('Subtitle file downloaded.');
+      }
+      srtBtn.addEventListener('click', downloadSrt);
+
+      /* ================= AUTO server mode (Recap Studio v3 API) ================= */
+      fillLangSelect($('autoTargetLang'), 'my');
+      var autoJobId = null;
+      var autoPollTimer = 0;
+      var autoState = $('autoState');
+      var autoProgressWrap = $('autoProgressWrap');
+      var autoProgressBar = $('autoProgressBar');
+      var autoProgressValue = $('autoProgressValue');
+      var autoProgressLabel = $('autoProgressLabel');
+      function setAutoProgress(label, pct) {
+        autoProgressWrap.style.display = 'block';
+        if (label != null) autoProgressLabel.textContent = label;
+        if (typeof pct === 'number' && isFinite(pct)) {
+          var clamped = Math.max(0, Math.min(100, pct));
+          autoProgressBar.style.width = clamped.toFixed(1) + '%';
+          autoProgressValue.textContent = Math.round(clamped) + '%';
+        }
+      }
+      function stopAutoPolling() { clearInterval(autoPollTimer); autoPollTimer = 0; }
+      async function pollAutoStatus() {
+        var base = backendBase();
+        if (!base || !autoJobId) return;
+        try {
+          var res = await fetch(base + '/api/status/' + encodeURIComponent(autoJobId));
+          var st = await res.json();
+          var pct = typeof st.percent === 'number' ? st.percent : null;
+          setAutoProgress(st.message || ('Stage: ' + (st.stage || 'working')), pct);
+          if (st.stage === 'done') {
+            stopAutoPolling();
+            $('autoBtn').disabled = false;
+            $('autoDownload').href = base + '/api/download/' + encodeURIComponent(autoJobId);
+            $('autoSubs').href = base + '/api/subtitles/' + encodeURIComponent(autoJobId);
+            $('autoLinks').hidden = false;
+            $('autoResumeWrap').hidden = true;
+            var extra = '';
+            if (st.translate) extra += ' Translate: ' + st.translate + '.';
+            if (st.tts) extra += ' Voice: ' + st.tts + '.';
+            autoState.innerHTML = '<strong>Done — your AUTO dubbed video is ready.</strong>' + esc(extra);
+            toast('AUTO video ready — download it below.');
+          } else if (st.stage === 'error' || st.error) {
+            stopAutoPolling();
+            $('autoBtn').disabled = false;
+            $('autoResumeWrap').hidden = false;
+            autoState.textContent = 'The server job stopped: ' + (st.error || st.message || 'unknown error') + ' — the finished steps are saved on the server, so Resume continues instead of starting over.';
+          }
+        } catch (e) {
+          autoState.textContent = 'Lost contact with the server while checking the job (' + (e.message || e) + '). Check the server is still running (free Colab sessions stop), then use Resume.';
+          stopAutoPolling();
+          $('autoBtn').disabled = false;
+          $('autoResumeWrap').hidden = false;
+        }
+      }
+      $('autoBtn').addEventListener('click', async function () {
+        var base = backendBase();
+        if (!base) { toast('Add the server URL in Settings first.'); return; }
+        if (!currentVideoFile) {
+          autoState.textContent = 'Choose the video file in step 01 first — AUTO mode sends the actual file to the server.';
+          toast('Add your clip in step 01 first.');
+          return;
+        }
+        var btn = this;
+        btn.disabled = true;
+        $('autoLinks').hidden = true;
+        $('autoResumeWrap').hidden = true;
+        setAutoProgress('Uploading your clip to the server…', 0);
+        autoState.textContent = 'Uploading… a big clip can take a while. Keep this page open.';
+        try {
+          var fd = new FormData();
+          fd.append('file', currentVideoFile);
+          fd.append('source_lang', sourceLang.slice(0, 2));
+          fd.append('target_lang', $('autoTargetLang').value);
+          fd.append('voice', $('autoVoice').value);
+          fd.append('aspect', aspectMode === '1:1' ? 'original' : aspectMode);
+          fd.append('keep_original_audio', $('autoKeepOriginal').checked ? 'true' : 'false');
+          fd.append('translate_mode', $('autoTranslateMode').value);
+          fd.append('sync_mode', $('autoSyncMode').value);
+          if ($('autoTranslateMode').value === 'quality' && geminiKey()) fd.append('gemini_api_key', geminiKey());
+          var res = await fetch(base + '/api/process', { method: 'POST', body: fd });
+          var json = await res.json().catch(function () { return null; });
+          if (!res.ok || !json || !json.job_id) {
+            throw new Error((json && (json.detail || json.error)) || ('Server answered HTTP ' + res.status));
+          }
+          autoJobId = json.job_id;
+          autoState.textContent = 'Job started on the server (id ' + autoJobId + '). The server transcribes, translates, dubs and renders — progress appears above.';
+          stopAutoPolling();
+          pollAutoStatus();
+          autoPollTimer = setInterval(pollAutoStatus, 3000);
+        } catch (e) {
+          btn.disabled = false;
+          autoState.textContent = 'Could not start the AUTO job: ' + (e.message || e) + ' — check the server URL in Settings and that the server is running.';
+          toast('AUTO job could not start — see step 07.');
+        }
+      });
+      $('autoResumeBtn').addEventListener('click', async function () {
+        var base = backendBase();
+        if (!base || !autoJobId) return;
+        var btn = this;
+        btn.disabled = true;
+        try {
+          var res = await fetch(base + '/api/resume/' + encodeURIComponent(autoJobId), { method: 'POST' });
+          var json = await res.json().catch(function () { return null; });
+          if (json && json.resumed) {
+            autoState.textContent = 'Job resumed on the server — continuing from its saved checkpoints.';
+            $('autoResumeWrap').hidden = true;
+            stopAutoPolling();
+            pollAutoStatus();
+            autoPollTimer = setInterval(pollAutoStatus, 3000);
+          } else {
+            autoState.textContent = 'The server did not resume this job: ' + ((json && json.message) || 'it may already be finished or running.');
+          }
+        } catch (e) {
+          autoState.textContent = 'Resume failed: ' + (e.message || e) + ' — check the server is running.';
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      /* ================= Init ================= */
+      refreshKeyState();
+      refreshAutoAvailability();
+      $('backendState').textContent = backendBase()
+        ? 'AUTO server mode is available in Create Video → Export, using: ' + backendBase()
+        : 'No backend saved — AUTO server mode stays off.';
+      updateScriptMeta();
+      applySubtitleStyleToPreview();
+      if (projects.length) {
+        var latest = projects.slice().sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); })[0];
+        if (latest) applyProjectData(latest);
+      }
+      window.addEventListener('beforeunload', function () {
+        if (videoUrl) URL.revokeObjectURL(videoUrl);
+        if (resultUrl) URL.revokeObjectURL(resultUrl);
+        if (lineRecStream) lineRecStream.getTracks().forEach(function (track) { track.stop(); });
+        stopAutoPolling();
+      });
+    })();
+  </script>
+</body>
+</html>
